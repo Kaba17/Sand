@@ -1,0 +1,141 @@
+Build a full MVP web app called “سند (Sanad)” — a Claims Management System.
+
+This is NOT a delivery app and NOT an airline platform.
+It is a system where users submit compensation claims and an admin team manages them end-to-end.
+
+====================
+PRODUCT PURPOSE
+====================
+Sanad helps users file compensation claims when a service fails, such as:
+- Flight delay / cancellation / baggage issues
+- Delivery delay / cancellation / failure / damage
+
+The system:
+- Collects claim data and evidence
+- Tracks claim status and timeline
+- Allows admin to manually draft and manage claims
+NO AI and NO Claude in this phase.
+
+====================
+USERS & ROLES
+====================
+Client (User):
+- Submit a claim
+- Upload evidence
+- Track claim status
+
+Admin:
+- View and manage all claims
+- Request missing info
+- Change claim status
+- Write claim draft manually
+- Record communications
+- Close claims with settlement details
+
+Auth (MVP):
+- Public claim submission
+- Simple admin login (single admin user)
+
+====================
+PAGES / ROUTES
+====================
+Public:
+1) Landing (/): what Sanad is + “ابدأ مطالبة”
+2) Claim Type (/new): Flight / Delivery
+3) Issue Type (/new/issue)
+   Flight: Delay, Cancellation, Lost baggage, Denied boarding
+   Delivery: Late, Cancelled, Failed, Damaged/Missing
+4) Claim Form (/new/form)
+   Common fields:
+   - Full name, phone, email (optional)
+   - Company name
+   - Flight number / Order number
+   - Incident date
+   - Description
+   - Upload evidence (images/PDF)
+   Flight extras: from, to, scheduled time (optional), actual time (optional)
+   Delivery extras: city/area, order time (optional), delivery time (optional)
+5) Review & Consent (/new/review)
+   - Summary + consent checkbox + submit
+6) Success (/new/success)
+   - Claim ID (e.g. SAN-2026-00001)
+7) Track Claim (/track)
+   - Claim ID + phone → status + timeline
+
+Admin:
+8) Admin Login (/admin/login)
+9) Admin Dashboard (/admin)
+   - Claims table with filters (status, category, date)
+10) Claim Details (/admin/claims/:id)
+   Sections:
+   - Customer info
+   - Incident details
+   - Attachments (preview/download)
+   - Status editor
+   - Missing info request (adds timeline event)
+   - Timeline / Activity log
+   - Claim Draft (large textarea, manual)
+   - Communications (method, sent date, response)
+   - Settlement:
+     compensation type, amount, fee %, auto-calc user net, close claim
+
+====================
+DATA MODEL (SQLite)
+====================
+claims:
+id, created_at, category, issue_type, status,
+company_name, reference_number, incident_date, description,
+customer_name, customer_phone, customer_email,
+flight_from, flight_to, flight_scheduled_time, flight_actual_time,
+delivery_city, delivery_order_time, delivery_delivery_time,
+draft_text, internal_notes
+
+attachments:
+id, claim_id, file_name, file_path, mime_type, uploaded_at
+
+timeline_events:
+id, claim_id, event_type, message, created_at
+
+communications:
+id, claim_id, method, sent_at, recipient, company_response, created_at
+
+settlements:
+id, claim_id, compensation_type, compensation_amount,
+fee_percent, user_net, closed_at
+
+====================
+FUNCTIONAL RULES
+====================
+- Create and track claims
+- Upload and store attachments
+- Status flow:
+  new → need_info → in_review → ready_to_submit → submitted
+  → waiting_response → resolved/rejected → closed
+- Auto-add timeline events on creation, status change, notes, settlement
+- Arabic RTL UI everywhere
+
+====================
+TECH STACK
+====================
+- Frontend: React + Vite (RTL)
+- Backend: Node.js + Express
+- Database: SQLite
+- File uploads: multer
+
+====================
+OUT OF SCOPE
+====================
+- No AI / no Claude
+- No payments
+- No integrations with airlines or platforms
+
+====================
+DELIVERABLE
+====================
+Build from scratch:
+- Working UI and navigation
+- Backend + database
+- Claim CRUD
+- File uploads
+- Admin dashboard
+- Claim tracking page
