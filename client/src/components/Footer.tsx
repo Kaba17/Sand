@@ -1,48 +1,45 @@
-import { ShieldCheck } from "lucide-react";
+import { Link } from "wouter";
+import { ShieldCheck, Heart } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="bg-muted/30 border-t mt-auto">
-      <div className="container py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+    <footer className="bg-card border-t py-12 mt-auto">
+      <div className="container px-4">
+        <div className="grid md:grid-cols-3 gap-8 mb-8">
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold font-cairo text-primary">سند</span>
-            </div>
-            <p className="text-sm text-muted-foreground font-tajawal leading-relaxed">
-              نساعدك في الحصول على تعويضاتك المستحقة عن مشاكل الطيران والتوصيل. نحن سندك القانوني.
+            <Link href="/" className="flex items-center gap-2">
+              <ShieldCheck className="h-8 w-8 text-primary" />
+              <span className="text-2xl font-black text-gradient">سند</span>
+            </Link>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              منصة سند متخصصة في مساعدتك للحصول على التعويضات المستحقة من شركات الطيران ومتاجر التوصيل.
             </p>
           </div>
-          
-          <div>
-            <h3 className="font-bold mb-4 font-cairo">روابط سريعة</h3>
-            <ul className="space-y-2 text-sm font-tajawal">
-              <li><a href="/" className="text-muted-foreground hover:text-primary transition-colors">الرئيسية</a></li>
-              <li><a href="/new" className="text-muted-foreground hover:text-primary transition-colors">تقديم مطالبة</a></li>
-              <li><a href="/track" className="text-muted-foreground hover:text-primary transition-colors">تتبع حالة الطلب</a></li>
+
+          <div className="space-y-4">
+            <h4 className="font-bold text-lg">روابط سريعة</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link href="/new" className="hover:text-primary transition-colors">ابدأ مطالبة جديدة</Link></li>
+              <li><Link href="/track" className="hover:text-primary transition-colors">تتبع حالة الطلب</Link></li>
+              <li><Link href="/" className="hover:text-primary transition-colors">الأسئلة الشائعة</Link></li>
             </ul>
           </div>
-          
-          <div>
-            <h3 className="font-bold mb-4 font-cairo">تواصل معنا</h3>
-            <ul className="space-y-2 text-sm font-tajawal">
-              <li className="text-muted-foreground">support@sanad.sa</li>
-              <li className="text-muted-foreground">الرياض، المملكة العربية السعودية</li>
-            </ul>
-          </div>
-          
-          <div>
-            <h3 className="font-bold mb-4 font-cairo">قانوني</h3>
-            <ul className="space-y-2 text-sm font-tajawal">
-              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">سياسة الخصوصية</a></li>
-              <li><a href="#" className="text-muted-foreground hover:text-primary transition-colors">الشروط والأحكام</a></li>
+
+          <div className="space-y-4">
+            <h4 className="font-bold text-lg">تواصل معنا</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>البريد: support@sanad.sa</li>
+              <li>واتساب: 966500000000+</li>
+              <li>متاحين على مدار الساعة</li>
             </ul>
           </div>
         </div>
-        
-        <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground font-tajawal">
-          © {new Date().getFullYear()} سند للمطالبات. جميع الحقوق محفوظة.
+
+        <div className="border-t pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+          <p>© {new Date().getFullYear()} سند للمطالبات - جميع الحقوق محفوظة</p>
+          <p className="flex items-center gap-1">
+            صنع بـ <Heart className="h-4 w-4 text-red-500 fill-red-500" /> في السعودية
+          </p>
         </div>
       </div>
     </footer>

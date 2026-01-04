@@ -1,147 +1,300 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Plane, Package, ChevronLeft, ArrowRight, Shield, Clock, Coins } from "lucide-react";
-import { motion } from "framer-motion";
+import { Plane, Package, ChevronLeft, Shield, Clock, Coins, FileText, Star, ArrowDown, CheckCircle } from "lucide-react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
+
+const fadeUp = {
+  initial: { opacity: 0, y: 30 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6 }
+};
+
+const staggerContainer = {
+  animate: { transition: { staggerChildren: 0.1 } }
+};
 
 export default function Home() {
-  return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-primary/10 to-background pt-24 pb-32">
-        <div className="container relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="space-y-6 text-right"
-            >
-              <h1 className="text-5xl md:text-6xl font-black text-foreground leading-tight font-cairo">
-                حقك <span className="text-primary">محفوظ</span><br/>
-                ومطالبتك <span className="text-accent">مضمونة</span>
-              </h1>
-              <p className="text-xl text-muted-foreground font-tajawal leading-relaxed max-w-lg">
-                هل واجهت مشاكل في رحلتك أو توصيل طلباتك؟
-                منصة سند تساعدك في الحصول على التعويض المستحق بكل سهولة وموثوقية.
-              </p>
-              
-              <div className="flex flex-wrap gap-4 pt-4">
-                <Link href="/new">
-                  <Button size="lg" className="h-14 px-8 text-lg font-cairo shadow-lg shadow-primary/25 hover:shadow-xl hover:-translate-y-1 transition-all">
-                    ابدأ مطالبة جديدة
-                    <ChevronLeft className="mr-2 h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link href="/track">
-                  <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-cairo border-2 hover:bg-background/50">
-                    تتبع حالة الطلب
-                  </Button>
-                </Link>
-              </div>
-            </motion.div>
+  const heroRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"]
+  });
+  
+  const y = useTransform(scrollYProgress, [0, 1], [0, 150]);
+  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="relative"
-            >
-              <div className="relative z-10 grid grid-cols-2 gap-4">
-                <div className="space-y-4 mt-8">
-                  <div className="bg-white p-6 rounded-2xl shadow-xl border border-primary/10">
-                    <Plane className="h-10 w-10 text-primary mb-4" />
-                    <h3 className="text-xl font-bold font-cairo mb-2">تعويضات الطيران</h3>
-                    <p className="text-muted-foreground font-tajawal">تأخير الرحلات، إلغاء الحجز، وفقدان الأمتعة.</p>
-                  </div>
-                  <div className="bg-white p-6 rounded-2xl shadow-xl border border-accent/20 bg-gradient-to-br from-accent/5 to-transparent">
-                    <Coins className="h-10 w-10 text-accent mb-4" />
-                    <h3 className="text-xl font-bold font-cairo mb-2">رسوم شفافة</h3>
-                    <p className="text-muted-foreground font-tajawal">لا تدفع أي رسوم إلا بعد نجاح مطالبتك.</p>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="bg-primary p-6 rounded-2xl shadow-xl text-primary-foreground">
-                    <Shield className="h-10 w-10 mb-4 text-white/90" />
-                    <h3 className="text-xl font-bold font-cairo mb-2">خبراء قانونيون</h3>
-                    <p className="text-primary-foreground/80 font-tajawal">فريق متخصص يتابع قضيتك حتى النهاية.</p>
-                  </div>
-                  <div className="bg-white p-6 rounded-2xl shadow-xl border border-primary/10">
-                    <Package className="h-10 w-10 text-primary mb-4" />
-                    <h3 className="text-xl font-bold font-cairo mb-2">تعويضات التوصيل</h3>
-                    <p className="text-muted-foreground font-tajawal">تأخر الطلبات، تلف الشحنات، وأخطاء المتاجر.</p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Decorative elements */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-primary/5 rounded-full blur-3xl -z-10" />
+  return (
+    <div className="min-h-screen overflow-hidden">
+      {/* Hero Section */}
+      <section ref={heroRef} className="relative min-h-[100svh] flex items-center justify-center overflow-hidden">
+        {/* Animated Background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-background to-background" />
+        <motion.div 
+          style={{ y }}
+          className="absolute inset-0 opacity-30"
+        >
+          <div className="absolute top-20 right-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse-slow" />
+          <div className="absolute bottom-40 left-10 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
+          <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl animate-float" />
+        </motion.div>
+        
+        <div className="container relative z-10 px-4 py-20 md:py-0">
+          <motion.div 
+            style={{ opacity }}
+            initial="initial"
+            animate="animate"
+            variants={staggerContainer}
+            className="text-center max-w-4xl mx-auto space-y-8"
+          >
+            {/* Badge */}
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
+              <Star className="w-4 h-4 fill-primary" />
+              <span>موثوق من آلاف العملاء</span>
             </motion.div>
+            
+            {/* Main Heading */}
+            <motion.h1 
+              variants={fadeUp}
+              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-tight"
+            >
+              <span className="block">حقك</span>
+              <span className="text-gradient">محفوظ معنا</span>
+            </motion.h1>
+            
+            <motion.p 
+              variants={fadeUp}
+              className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed px-4"
+            >
+              هل واجهت مشاكل في رحلتك أو توصيل طلباتك؟
+              منصة <span className="text-primary font-bold">سند</span> تساعدك في الحصول على التعويض المستحق بكل سهولة
+            </motion.p>
+            
+            {/* CTA Buttons */}
+            <motion.div 
+              variants={fadeUp}
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4"
+            >
+              <Link href="/new">
+                <Button 
+                  size="lg" 
+                  className="w-full sm:w-auto h-14 px-8 text-lg font-bold rounded-2xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-1 transition-all btn-gradient"
+                >
+                  ابدأ مطالبة جديدة
+                  <ChevronLeft className="mr-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/track">
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="w-full sm:w-auto h-14 px-8 text-lg font-bold rounded-2xl border-2 hover:bg-muted/50"
+                >
+                  تتبع حالة الطلب
+                </Button>
+              </Link>
+            </motion.div>
+            
+            {/* Trust Indicators */}
+            <motion.div 
+              variants={fadeUp}
+              className="flex flex-wrap items-center justify-center gap-6 pt-8 text-sm text-muted-foreground"
+            >
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span>بدون رسوم مقدمة</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span>دعم على مدار الساعة</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span>نجاح مضمون أو مجاني</span>
+              </div>
+            </motion.div>
+          </motion.div>
+          
+          {/* Scroll Indicator */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="absolute bottom-8 left-1/2 -translate-x-1/2"
+          >
+            <motion.div 
+              animate={{ y: [0, 10, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="flex flex-col items-center gap-2 text-muted-foreground"
+            >
+              <span className="text-xs">اكتشف المزيد</span>
+              <ArrowDown className="w-4 h-4" />
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Service Cards */}
+      <section className="py-20 md:py-32 bg-muted/30">
+        <div className="container px-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center max-w-2xl mx-auto mb-16"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">خدماتنا</h2>
+            <p className="text-muted-foreground text-lg">نساعدك في استرداد حقوقك من مختلف الخدمات</p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {[
+              {
+                icon: Plane,
+                title: "تعويضات الطيران",
+                desc: "تأخير الرحلات، إلغاء الحجوزات، فقدان الأمتعة، ورفض الصعود.",
+                color: "from-blue-500 to-cyan-400",
+                features: ["تعويض يصل لـ 600 يورو", "متابعة احترافية", "بدون رسوم مقدمة"]
+              },
+              {
+                icon: Package,
+                title: "تعويضات التوصيل",
+                desc: "تأخر الطلبات، تلف الشحنات، منتجات ناقصة، وأخطاء المتاجر.",
+                color: "from-purple-500 to-pink-400",
+                features: ["استرداد كامل المبلغ", "تعويض عن الأضرار", "حل سريع"]
+              }
+            ].map((service, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="group relative bg-card rounded-3xl p-8 border shadow-sm card-hover overflow-hidden"
+              >
+                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${service.color} opacity-10 rounded-full blur-2xl group-hover:opacity-20 transition-opacity`} />
+                
+                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${service.color} flex items-center justify-center mb-6 shadow-lg`}>
+                  <service.icon className="h-8 w-8 text-white" />
+                </div>
+                
+                <h3 className="text-2xl font-bold mb-3">{service.title}</h3>
+                <p className="text-muted-foreground mb-6 leading-relaxed">{service.desc}</p>
+                
+                <ul className="space-y-2">
+                  {service.features.map((f, j) => (
+                    <li key={j} className="flex items-center gap-2 text-sm">
+                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* How it works */}
-      <section className="py-24 bg-white">
-        <div className="container">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl font-bold font-cairo mb-4">كيف تعمل منصة سند؟</h2>
-            <p className="text-muted-foreground font-tajawal">خطوات بسيطة تفصلك عن استرجاع حقوقك</p>
-          </div>
+      <section className="py-20 md:py-32">
+        <div className="container px-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center max-w-2xl mx-auto mb-16"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">كيف تعمل المنصة؟</h2>
+            <p className="text-muted-foreground text-lg">ثلاث خطوات بسيطة تفصلك عن استرجاع حقوقك</p>
+          </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8 relative">
-            {/* Connecting Line */}
-            <div className="hidden md:block absolute top-12 right-0 left-0 h-0.5 bg-gradient-to-l from-transparent via-primary/20 to-transparent" />
-
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto relative">
+            {/* Connecting Line - Desktop */}
+            <div className="hidden md:block absolute top-24 right-[16%] left-[16%] h-0.5 bg-gradient-to-l from-primary/20 via-primary to-primary/20" />
+            
             {[
-              {
-                icon: FileText,
-                title: "قدم طلبك",
-                desc: "أجب عن بعض الأسئلة البسيطة وارفع المستندات المطلوبة في دقائق."
-              },
-              {
-                icon: Clock,
-                title: "نحن نتابع",
-                desc: "يقوم فريقنا القانوني بدراسة الحالة والتفاوض مع الشركات نيابة عنك."
-              },
-              {
-                icon: Coins,
-                title: "استلم تعويضك",
-                desc: "بمجرد نجاح المطالبة، نقوم بتحويل المبلغ لحسابك بعد خصم أتعابنا."
-              }
+              { icon: FileText, title: "قدم طلبك", desc: "أجب عن أسئلة بسيطة وارفع المستندات في دقائق معدودة.", num: "01" },
+              { icon: Clock, title: "نحن نتابع", desc: "فريقنا يدرس الحالة ويتفاوض مع الشركات نيابة عنك.", num: "02" },
+              { icon: Coins, title: "استلم تعويضك", desc: "بعد النجاح، نحول المبلغ لحسابك بعد خصم أتعابنا فقط.", num: "03" }
             ].map((step, i) => (
-              <div key={i} className="relative bg-background rounded-2xl p-8 text-center border hover:border-primary/30 transition-all hover:shadow-lg group z-10">
-                <div className="w-16 h-16 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform duration-300">
-                  <step.icon className="h-8 w-8" />
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.15 }}
+                className="relative bg-card rounded-3xl p-8 text-center border shadow-sm card-hover"
+              >
+                <div className="absolute -top-4 right-8 bg-primary text-primary-foreground text-sm font-bold px-3 py-1 rounded-full">
+                  {step.num}
                 </div>
-                <h3 className="text-xl font-bold font-cairo mb-3">{step.title}</h3>
-                <p className="text-muted-foreground font-tajawal">{step.desc}</p>
-              </div>
+                <div className="w-20 h-20 mx-auto bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl flex items-center justify-center mb-6">
+                  <step.icon className="h-10 w-10 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">{step.title}</h3>
+                <p className="text-muted-foreground leading-relaxed">{step.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-16 bg-primary text-primary-foreground">
+        <div className="container px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            {[
+              { value: "5000+", label: "مطالبة ناجحة" },
+              { value: "98%", label: "نسبة النجاح" },
+              { value: "24/7", label: "دعم متواصل" },
+              { value: "0", label: "رسوم مقدمة" }
+            ].map((stat, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <div className="text-3xl md:text-4xl font-black mb-2">{stat.value}</div>
+                <div className="text-primary-foreground/80 text-sm">{stat.label}</div>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-primary text-primary-foreground relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2000&auto=format&fit=crop')] opacity-10 mix-blend-overlay bg-cover bg-center">
-          {/* Unsplash: Meeting/Handshake representing agreement */}
-        </div>
-        <div className="container relative z-10 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold font-cairo mb-6">لا تتنازل عن حقوقك</h2>
-          <p className="text-xl text-primary-foreground/90 font-tajawal mb-8 max-w-2xl mx-auto">
-            أكثر من 80% من المسافرين والمستهلكين لا يطالبون بحقوقهم. كن من الـ 20% الأذكياء واستعد حقك الآن.
-          </p>
-          <Link href="/new">
-            <Button size="lg" variant="secondary" className="h-14 px-8 text-lg font-cairo shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all text-primary">
-              ابدأ المطالبة الآن
-              <ChevronLeft className="mr-2 h-5 w-5" />
-            </Button>
-          </Link>
+      <section className="py-20 md:py-32">
+        <div className="container px-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="relative max-w-4xl mx-auto bg-gradient-to-br from-primary to-blue-600 rounded-3xl p-8 md:p-12 text-center text-white overflow-hidden shadow-2xl"
+          >
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yIDItNCAyLTRzMiAyIDIgNHMtMiA0LTIgNC0yLTItMi00eiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
+            
+            <div className="relative z-10">
+              <Shield className="w-16 h-16 mx-auto mb-6 opacity-90" />
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">لا تتنازل عن حقوقك</h2>
+              <p className="text-white/90 text-lg mb-8 max-w-2xl mx-auto">
+                أكثر من 80% من المسافرين لا يطالبون بحقوقهم. كن من الأذكياء واستعد حقك الآن!
+              </p>
+              <Link href="/new">
+                <Button 
+                  size="lg" 
+                  variant="secondary" 
+                  className="h-14 px-8 text-lg font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all"
+                >
+                  ابدأ المطالبة الآن
+                  <ChevronLeft className="mr-2 h-5 w-5" />
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
         </div>
       </section>
     </div>
   );
 }
-
-// Importing icons here to fix reference in map function
-import { FileText } from "lucide-react";
