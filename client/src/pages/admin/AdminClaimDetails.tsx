@@ -26,6 +26,9 @@ export default function AdminClaimDetails() {
   const [commMessage, setCommMessage] = useState("");
   const [status, setStatus] = useState<string | undefined>(undefined);
   const [airlineResponse, setAirlineResponse] = useState("");
+  const [documentVerificationResults, setDocumentVerificationResults] = useState<any>(null);
+  const [singleDocResult, setSingleDocResult] = useState<any>(null);
+  const [verifyingAttachmentId, setVerifyingAttachmentId] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -69,6 +72,39 @@ export default function AdminClaimDetails() {
       uploadBoardingPassMutation.mutate(file);
     }
   }, [uploadBoardingPassMutation]);
+
+  const verifyDocumentMutation = useMutation({
+    mutationFn: async (attachmentId: number) => {
+      setVerifyingAttachmentId(attachmentId);
+      const attachment = claim?.attachments?.find((a: any) => a.id === attachmentId);
+      const result = await apiRequest("POST", `/api/claims/${id}/verify-document/${attachmentId}`);
+      return { ...result, fileName: attachment?.fileName || "مستند" };
+    },
+    onSuccess: (data: any) => {
+      setVerifyingAttachmentId(null);
+      setSingleDocResult(data);
+      queryClient.invalidateQueries({ queryKey: [api.claims.get.path, id] });
+      toast({ title: "تم التحقق من المستند بنجاح" });
+    },
+    onError: () => {
+      setVerifyingAttachmentId(null);
+      toast({ title: "فشل في التحقق من المستند", variant: "destructive" });
+    },
+  });
+
+  const verifyAllDocumentsMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/claims/${id}/verify-all-documents`);
+    },
+    onSuccess: (data: any) => {
+      setDocumentVerificationResults(data);
+      queryClient.invalidateQueries({ queryKey: [api.claims.get.path, id] });
+      toast({ title: `تم التحقق من ${data.summary?.total || 0} مستند(ات)` });
+    },
+    onError: () => {
+      toast({ title: "فشل في التحقق من المستندات", variant: "destructive" });
+    },
+  });
 
   const aiAgentMutation = useMutation({
     mutationFn: async (mode: "analyze" | "draft" | "followup") => {
@@ -187,21 +223,186 @@ export default function AdminClaimDetails() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="font-cairo">المرفقات</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <CardTitle className="font-cairo">المرفقات</CardTitle>
+              {claim.attachments && claim.attachments.filter((f: any) => f.mimeType?.startsWith("image/")).length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => verifyAllDocumentsMutation.mutate()}
+                  disabled={verifyAllDocumentsMutation.isPending}
+                  data-testid="button-verify-all-docs"
+                  className="font-tajawal"
+                >
+                  {verifyAllDocumentsMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                  ) : (
+                    <ScanSearch className="h-4 w-4 ml-2" />
+                  )}
+                  تحقق من جميع المستندات
+                </Button>
+              )}
+            </CardHeader>
             <CardContent>
               {claim.attachments && claim.attachments.length > 0 ? (
                 <div className="space-y-2">
                   {claim.attachments.map((file: any, i: number) => (
                     <div key={i} className="flex items-center gap-3 p-3 border rounded hover:bg-muted/50 transition-colors">
                       <FileText className="h-5 w-5 text-primary" />
-                      <a href={file.filePath} target="_blank" className="text-sm hover:underline flex-1 truncate font-tajawal">
+                      <a href={`/${file.filePath}`} target="_blank" className="text-sm hover:underline flex-1 truncate font-tajawal">
                         {file.fileName}
+                      </a>
+                      {file.mimeType?.startsWith("image/") && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => verifyDocumentMutation.mutate(file.id)}
+                          disabled={verifyingAttachmentId === file.id}
+                          data-testid={`button-verify-doc-${file.id}`}
+                          title="تحقق من المستند بالذكاء الاصطناعي"
+                        >
+                          {verifyingAttachmentId === file.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <ScanSearch className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                      <a href={`/${file.filePath}`} target="_blank" data-testid={`link-view-doc-${file.id}`}>
+                        <Button size="icon" variant="ghost" title="عرض" data-testid={`button-view-doc-${file.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
                       </a>
                     </div>
                   ))}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground font-tajawal">لا توجد مرفقات.</p>
+              )}
+
+              {/* Single Document Verification Result */}
+              {singleDocResult && (
+                <div className="mt-4 p-4 bg-muted/30 rounded-lg space-y-3" data-testid="single-doc-result">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm font-medium font-cairo">
+                      <ScanSearch className="h-5 w-5 text-primary" />
+                      نتيجة التحقق: {singleDocResult.fileName}
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => setSingleDocResult(null)}
+                      data-testid="button-close-single-result"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="p-3 bg-background rounded border text-sm font-tajawal">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">
+                        النوع: {
+                          singleDocResult.verification?.documentType === 'boarding_pass' ? 'بطاقة صعود' :
+                          singleDocResult.verification?.documentType === 'ticket' ? 'تذكرة' :
+                          singleDocResult.verification?.documentType === 'receipt' ? 'إيصال' :
+                          singleDocResult.verification?.documentType === 'invoice' ? 'فاتورة' :
+                          singleDocResult.verification?.documentType === 'id_document' ? 'وثيقة هوية' :
+                          singleDocResult.verification?.documentType === 'other' ? 'مستند آخر' : 'غير معروف'
+                        }
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-xs ${
+                        (singleDocResult.verification?.confidence || 0) >= 70 ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400' :
+                        (singleDocResult.verification?.confidence || 0) >= 40 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' :
+                        'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                      }`}>
+                        ثقة {singleDocResult.verification?.confidence || 0}%
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      {singleDocResult.verification?.verificationNotes && (
+                        <p>{singleDocResult.verification.verificationNotes}</p>
+                      )}
+                      {singleDocResult.verification?.extractedData?.flightNumber && (
+                        <p>رقم الرحلة: {singleDocResult.verification.extractedData.flightNumber}</p>
+                      )}
+                      {singleDocResult.verification?.extractedData?.passengerName && (
+                        <p>اسم المسافر: {singleDocResult.verification.extractedData.passengerName}</p>
+                      )}
+                      {singleDocResult.verification?.extractedData?.flightDate && (
+                        <p>تاريخ الرحلة: {singleDocResult.verification.extractedData.flightDate}</p>
+                      )}
+                      {singleDocResult.verification?.warnings?.length > 0 && (
+                        <div className="flex items-center gap-1 text-amber-600 mt-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          <span>{singleDocResult.verification.warnings.join(", ")}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Batch Verification Results */}
+              {documentVerificationResults && (
+                <div className="mt-4 p-4 bg-muted/30 rounded-lg space-y-3" data-testid="batch-doc-results">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm font-medium font-cairo">
+                      <ScanSearch className="h-5 w-5 text-primary" />
+                      نتائج التحقق من المستندات
+                      <span className="text-muted-foreground">
+                        ({documentVerificationResults.summary?.successful || 0}/{documentVerificationResults.summary?.total || 0} ناجح)
+                      </span>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => setDocumentVerificationResults(null)}
+                      data-testid="button-close-batch-results"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {documentVerificationResults.results?.map((result: any, idx: number) => (
+                      <div key={idx} className="p-3 bg-background rounded border text-sm font-tajawal">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium truncate">{result.fileName}</span>
+                          <span className={`px-2 py-0.5 rounded text-xs ${
+                            result.verification.confidence >= 70 ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400' :
+                            result.verification.confidence >= 40 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' :
+                            'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                          }`}>
+                            ثقة {result.verification.confidence}%
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <p>النوع: {
+                            result.verification.documentType === 'boarding_pass' ? 'بطاقة صعود' :
+                            result.verification.documentType === 'ticket' ? 'تذكرة' :
+                            result.verification.documentType === 'receipt' ? 'إيصال' :
+                            result.verification.documentType === 'invoice' ? 'فاتورة' :
+                            result.verification.documentType === 'id_document' ? 'وثيقة هوية' :
+                            result.verification.documentType === 'other' ? 'مستند آخر' : 'غير معروف'
+                          }</p>
+                          {result.verification.verificationNotes && (
+                            <p>{result.verification.verificationNotes}</p>
+                          )}
+                          {result.verification.extractedData?.flightNumber && (
+                            <p>رقم الرحلة: {result.verification.extractedData.flightNumber}</p>
+                          )}
+                          {result.verification.extractedData?.passengerName && (
+                            <p>اسم المسافر: {result.verification.extractedData.passengerName}</p>
+                          )}
+                          {result.verification.warnings?.length > 0 && (
+                            <div className="flex items-center gap-1 text-amber-600 mt-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              <span>{result.verification.warnings.join(", ")}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
