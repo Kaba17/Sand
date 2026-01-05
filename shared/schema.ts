@@ -107,6 +107,25 @@ export const flightVerifications = pgTable("flight_verifications", {
   verifiedAt: timestamp("verified_at"),
 });
 
+export const aiOutputs = pgTable("ai_outputs", {
+  id: serial("id").primaryKey(),
+  claimId: integer("claim_id").notNull().unique(),
+  
+  // AI generated content
+  summary: text("summary"),
+  caseStrength: text("case_strength"), // 'strong', 'medium', 'weak'
+  eligibilityReasoning: text("eligibility_reasoning"),
+  claimDraft: text("claim_draft"),
+  nextAction: text("next_action"),
+  
+  // Cache key for avoiding redundant AI calls
+  lastInputHash: text("last_input_hash"),
+  lastMode: text("last_mode"), // 'analyze', 'draft', 'followup'
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // === RELATIONS ===
 
 export const claimsRelations = relations(claims, ({ many, one }) => ({
@@ -120,6 +139,10 @@ export const claimsRelations = relations(claims, ({ many, one }) => ({
   flightVerification: one(flightVerifications, {
     fields: [claims.id],
     references: [flightVerifications.claimId],
+  }),
+  aiOutput: one(aiOutputs, {
+    fields: [claims.id],
+    references: [aiOutputs.claimId],
   }),
 }));
 
@@ -154,6 +177,13 @@ export const settlementsRelations = relations(settlements, ({ one }) => ({
 export const flightVerificationsRelations = relations(flightVerifications, ({ one }) => ({
   claim: one(claims, {
     fields: [flightVerifications.claimId],
+    references: [claims.id],
+  }),
+}));
+
+export const aiOutputsRelations = relations(aiOutputs, ({ one }) => ({
+  claim: one(claims, {
+    fields: [aiOutputs.claimId],
     references: [claims.id],
   }),
 }));
@@ -194,6 +224,12 @@ export const insertFlightVerificationSchema = createInsertSchema(flightVerificat
   verifiedAt: true
 });
 
+export const insertAiOutputSchema = createInsertSchema(aiOutputs).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true
+});
+
 // === EXPLICIT API CONTRACT TYPES ===
 
 export type Claim = typeof claims.$inferSelect;
@@ -203,6 +239,7 @@ export type TimelineEvent = typeof timelineEvents.$inferSelect;
 export type Communication = typeof communications.$inferSelect;
 export type Settlement = typeof settlements.$inferSelect;
 export type FlightVerification = typeof flightVerifications.$inferSelect;
+export type AiOutput = typeof aiOutputs.$inferSelect;
 
 // Insert types for sub-resources
 export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
@@ -210,6 +247,7 @@ export type InsertTimelineEvent = z.infer<typeof insertTimelineEventSchema>;
 export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
 export type InsertSettlement = z.infer<typeof insertSettlementSchema>;
 export type InsertFlightVerification = z.infer<typeof insertFlightVerificationSchema>;
+export type InsertAiOutput = z.infer<typeof insertAiOutputSchema>;
 
 // Request types
 export type CreateClaimRequest = InsertClaim;
@@ -226,6 +264,7 @@ export type ClaimResponse = Claim & {
   communications?: Communication[];
   settlement?: Settlement | null;
   flightVerification?: FlightVerification | null;
+  aiOutput?: AiOutput | null;
 };
 
 export type ClaimsListResponse = Claim[];

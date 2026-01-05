@@ -6,6 +6,7 @@ import {
   communications,
   settlements,
   flightVerifications,
+  aiOutputs,
   type Claim,
   type InsertClaim,
   type UpdateClaimRequest,
@@ -14,11 +15,13 @@ import {
   type Communication,
   type Settlement,
   type FlightVerification,
+  type AiOutput,
   type InsertAttachment,
   type InsertTimelineEvent,
   type InsertCommunication,
   type InsertSettlement,
-  type InsertFlightVerification
+  type InsertFlightVerification,
+  type InsertAiOutput
 } from "@shared/schema";
 import { eq, desc, and, ilike, or } from "drizzle-orm";
 import { authStorage, type IAuthStorage } from "./replit_integrations/auth/storage";
@@ -52,6 +55,10 @@ export interface IStorage extends IAuthStorage {
   createFlightVerification(verification: InsertFlightVerification): Promise<FlightVerification>;
   getFlightVerification(claimId: number): Promise<FlightVerification | undefined>;
   updateFlightVerification(claimId: number, updates: Partial<InsertFlightVerification>): Promise<FlightVerification>;
+  
+  // AI Outputs
+  getAiOutput(claimId: number): Promise<AiOutput | undefined>;
+  upsertAiOutput(claimId: number, output: Partial<InsertAiOutput>): Promise<AiOutput>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -210,6 +217,33 @@ export class DatabaseStorage implements IStorage {
       .where(eq(flightVerifications.claimId, claimId))
       .returning();
     return updated;
+  }
+
+  // AI Outputs
+  async getAiOutput(claimId: number): Promise<AiOutput | undefined> {
+    const [output] = await db.select().from(aiOutputs).where(eq(aiOutputs.claimId, claimId));
+    return output;
+  }
+
+  async upsertAiOutput(claimId: number, output: Partial<InsertAiOutput>): Promise<AiOutput> {
+    const existing = await this.getAiOutput(claimId);
+    
+    if (existing) {
+      const [updated] = await db.update(aiOutputs)
+        .set({
+          ...output,
+          updatedAt: new Date()
+        })
+        .where(eq(aiOutputs.claimId, claimId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(aiOutputs).values({
+        claimId,
+        ...output
+      }).returning();
+      return created;
+    }
   }
 }
 
