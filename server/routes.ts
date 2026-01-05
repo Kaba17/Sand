@@ -86,6 +86,37 @@ export async function registerRoutes(
     }
   });
 
+  // Get Claims History by Phone Number
+  // Security: Require both phone AND a valid claimId that belongs to that phone as verification
+  // This prevents phone number enumeration attacks
+  app.get("/api/claims/history/:phone", async (req, res) => {
+    try {
+      const { phone } = req.params;
+      const { verifyClaimId } = req.query;
+      
+      if (!phone || phone.length < 10) {
+        return res.status(400).json({ message: "رقم الجوال غير صالح" });
+      }
+      
+      // Require a verification claim ID to prove user knows at least one of their claims
+      if (!verifyClaimId) {
+        return res.status(401).json({ message: "يجب تقديم رقم مطالبة للتحقق من الهوية" });
+      }
+      
+      // Verify that the provided claim ID belongs to this phone number
+      const verifyClaim = await storage.getClaimByPublicId(verifyClaimId as string);
+      if (!verifyClaim || verifyClaim.customerPhone !== phone) {
+        return res.status(403).json({ message: "بيانات التحقق غير صحيحة" });
+      }
+      
+      // If verification passed, return all claims for this phone
+      const claims = await storage.getClaimsByPhone(phone);
+      res.json(claims);
+    } catch (err) {
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
   // Upload Attachment (Public for now as part of creation flow)
   app.post("/api/upload", upload.single("file"), async (req, res) => {
     if (!req.file) {

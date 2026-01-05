@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, User, LogOut, LayoutDashboard, Menu, X, Bot } from "lucide-react";
+import { ShieldCheck, User, LogOut, LayoutDashboard, Menu, X, Bot, History } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   DropdownMenu,
@@ -33,6 +33,7 @@ export function Navbar() {
     { href: "/", label: "الرئيسية" },
     { href: "/new", label: "ابدأ مطالبة" },
     { href: "/track", label: "تتبع طلبي" },
+    { href: "/history", label: "سجل المطالبات", icon: History },
     { href: "/agent", label: "الوكيل الذكي", icon: Bot },
   ];
 

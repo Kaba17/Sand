@@ -28,6 +28,7 @@ export interface IStorage extends IAuthStorage {
   getClaims(params?: { status?: string; category?: string; search?: string }): Promise<Claim[]>;
   getClaim(id: number): Promise<Claim | undefined>;
   getClaimByPublicId(claimId: string): Promise<Claim | undefined>;
+  getClaimsByPhone(phone: string): Promise<Claim[]>;
   createClaim(claim: InsertClaim): Promise<Claim>;
   updateClaim(id: number, updates: UpdateClaimRequest): Promise<Claim>;
   
@@ -99,6 +100,13 @@ export class DatabaseStorage implements IStorage {
   async getClaimByPublicId(claimId: string): Promise<Claim | undefined> {
     const [claim] = await db.select().from(claims).where(eq(claims.claimId, claimId));
     return claim;
+  }
+
+  async getClaimsByPhone(phone: string): Promise<Claim[]> {
+    return await db.select()
+      .from(claims)
+      .where(eq(claims.customerPhone, phone))
+      .orderBy(desc(claims.createdAt));
   }
 
   async createClaim(insertClaim: InsertClaim): Promise<Claim> {
