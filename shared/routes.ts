@@ -9,7 +9,8 @@ import {
   timelineEvents,
   communications,
   settlements,
-  flightVerifications
+  flightVerifications,
+  aiOutputs
 } from './schema';
 
 // ============================================
@@ -58,7 +59,8 @@ export const api = {
           timelineEvents: any[],
           communications: any[],
           settlement: any,
-          flightVerification: typeof flightVerifications.$inferSelect | null
+          flightVerification: typeof flightVerifications.$inferSelect | null,
+          aiOutput: typeof aiOutputs.$inferSelect | null
         }>(),
         404: errorSchemas.notFound,
         401: errorSchemas.unauthorized,
