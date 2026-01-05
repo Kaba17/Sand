@@ -1,0 +1,186 @@
+Please read carefully. This is a PRODUCT + SYSTEM explanation, not just UI changes.
+
+Project Name:
+Sanad (سند)
+
+Scope (Very Important):
+- Flight claims ONLY (for now)
+- Do NOT build delivery, hotels, or other services
+- Sanad is NOT an airline system
+- Sanad is NOT a marketplace
+- Sanad is a claims platform that represents passengers and files claims on their behalf
+
+Core Idea:
+Sanad takes over the entire flight compensation claim for the passenger.
+The user uploads flight details and evidence, then the system (with Claude) handles analysis, claim drafting, follow-up, and escalation.
+
+The user should feel:
+“I uploaded the evidence, Sanad handled everything else.”
+
+================================
+USER FLOW (PUBLIC)
+================================
+1) Landing Page
+- Explains what Sanad is
+- CTA: Start Flight Claim
+
+2) New Flight Claim (Stepper)
+Step 1: Flight Details
+- Airline name
+- Flight number
+- Flight date
+- From airport
+- To airport
+
+Step 2: Disruption Type
+- Delay
+- Cancellation
+- Denied boarding
+- Missed connection
+- Baggage delay/loss
+
+If Delay:
+- Delay duration (minutes/hours)
+
+Step 3: Evidence
+- Upload screenshots / PDFs (emails, SMS, notifications)
+- Textbox: “Paste message content” (SMS/email text)
+
+Step 4: Review & Consent
+- Show summary
+- Checkbox: “I authorize Sanad to represent me in this claim”
+- Submit
+
+Step 5: Success
+- Show Claim ID
+- Show Tracking Code
+
+3) Track Claim
+- Input: Tracking code + phone/email
+- Show:
+  - Current status
+  - Timeline
+  - AI-generated summary (read-only)
+
+================================
+ADMIN FLOW
+================================
+Admin Login (simple, single admin is fine)
+
+Admin Dashboard:
+- Claims table:
+  Claim ID | Airline | Flight Date | Disruption Type | Status | Created At
+
+Claim Details Page:
+- Flight info
+- Evidence list (preview images/PDF)
+- Timeline (all events)
+- Airline response input (paste response text)
+
+AI Panel (IMPORTANT):
+This is NOT a chat for fun.
+This is a “Claims Agent”.
+
+Buttons:
+1) Analyze Case
+2) Draft Claim
+3) Follow-up / Escalate
+
+Each button calls the Claude endpoint and saves output.
+
+================================
+CLAUDE ROLE (CORE VALUE)
+================================
+Claude acts as:
+“Sanad Aviation Claims Agent”
+
+Claude responsibilities:
+- Summarize the case
+- Classify case strength: Strong / Medium / Weak
+- Explain eligibility reasoning
+- Draft professional claim message
+- Draft follow-up or escalation reply when airline responds
+- Recommend next action (continue / accept / stop)
+
+Claude is NOT exposed as “Claude” to users.
+UI name: “Sanad Smart Claims Agent”
+
+================================
+SERVER INTEGRATION
+================================
+Add a server endpoint:
+
+POST /api/ai/flight-agent
+
+Input:
+- claimId
+- claimData (flight details, disruption type, delay)
+- evidenceText (pasted SMS/email + extracted notes)
+- mode: analyze | draft | followup
+
+Output (saved to DB):
+- ai_summary
+- ai_case_strength
+- ai_eligibility_reasoning
+- ai_claim_draft
+- ai_next_action
+
+Claude prompt must be SYSTEM-LEVEL on the server (not editable by users).
+
+================================
+DATABASE (MINIMUM)
+================================
+claims:
+- id
+- airline
+- flight_number
+- flight_date
+- from_airport
+- to_airport
+- disruption_type
+- delay_minutes
+- status
+- tracking_code
+- created_at
+
+evidence:
+- id
+- claim_id
+- type (sms/email/screenshot/pdf)
+- file_url
+- text_content
+
+ai_outputs:
+- claim_id
+- summary
+- strength
+- reasoning
+- draft
+- next_action
+- updated_at
+
+timeline:
+- id
+- claim_id
+- event_type
+- message
+- created_at
+
+================================
+IMPORTANT RULES
+================================
+- This is NOT a general chat app
+- All AI actions are tied to a specific claim
+- No AI hallucination or invented laws
+- If a case is weak, Claude should advise stopping
+- Protect platform credibility
+
+================================
+GOAL OF THIS PHASE
+================================
+Deliver a working MVP where:
+- A real passenger can submit a flight claim
+- Admin can analyze it with Claude
+- A real claim letter is produced
+- Timeline shows full story
+- Ready for public launch (flight claims only)
