@@ -164,10 +164,9 @@ export default function ClaimWizard() {
   }, [issueType, delayHours, step, setValue]);
 
   const onSubmit = (data: WizardData) => {
-    // Convert incidentDate string to Date object for the API
+    // API handles date string conversion automatically
     const submitData = {
       ...data,
-      incidentDate: new Date(data.incidentDate as unknown as string),
       delayHours: delayHours,
     };
     createClaim.mutate(submitData as any, {

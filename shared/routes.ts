@@ -69,7 +69,11 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/claims',
-      input: insertClaimSchema,
+      input: insertClaimSchema.extend({
+        incidentDate: z.union([z.string(), z.date()]).transform((val) => 
+          typeof val === 'string' ? new Date(val) : val
+        ),
+      }),
       responses: {
         201: z.object({
           id: z.number(),
