@@ -693,6 +693,59 @@ ${airlineResponseText || "لا يوجد رد"}`;
     res.status(201).json(comm);
   });
 
+  // === ADMIN SETTINGS ===
+  
+  // Get all settings
+  app.get("/api/admin/settings", isAuthenticated, async (req, res) => {
+    try {
+      const settings = await storage.getAllSettings();
+      const settingsObj: Record<string, string> = {};
+      settings.forEach(s => { settingsObj[s.key] = s.value; });
+      res.json(settingsObj);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  // Update setting
+  app.post("/api/admin/settings", isAuthenticated, async (req, res) => {
+    try {
+      const { key, value } = req.body;
+      if (!key || !value) {
+        return res.status(400).json({ message: "Key and value required" });
+      }
+      await storage.upsertSetting(key, value);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update setting" });
+    }
+  });
+
+  // Mark claim as submitted to airline
+  app.post("/api/claims/:id/mark-submitted", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { channel, date } = req.body;
+      
+      await storage.updateClaim(id, {
+        submittedToAirline: true,
+        submissionChannel: channel,
+        submissionDate: date ? new Date(date) : new Date(),
+        status: "processing",
+      });
+
+      await storage.createTimelineEvent({
+        claimId: id,
+        eventType: "submission",
+        message: `تم إرسال المطالبة لشركة الطيران عبر ${channel === 'email' ? 'البريد الإلكتروني' : channel === 'portal' ? 'البوابة الإلكترونية' : 'الهاتف'}`,
+      });
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to mark as submitted" });
+    }
+  });
+
   // Create Settlement
   app.post(api.settlements.create.path, isAuthenticated, async (req, res) => {
     const id = parseInt(req.params.id);
@@ -716,6 +769,12 @@ ${airlineResponseText || "لا يوجد رد"}`;
     res.status(201).json(settlement);
   });
 
+  // Seed default settings if not exist
+  const sdrRate = await storage.getSetting("SDR_TO_SAR");
+  if (!sdrRate) {
+    await storage.upsertSetting("SDR_TO_SAR", "5.1");
+  }
+
   // Seed Data (if empty)
   // Simple check on one category to see if we need to seed
   const existingClaims = await storage.getClaims();
@@ -727,20 +786,24 @@ ${airlineResponseText || "لا يوجد رد"}`;
 }
 
 async function seedDatabase() {
-  // Create a few sample claims
+  // Create sample flight claims only (Flight-only MVP)
   const c1 = await storage.createClaim({
     category: "flight",
     issueType: "delay",
-    companyName: "Saudi Airlines",
+    companyName: "الخطوط السعودية",
     referenceNumber: "SV12345",
     incidentDate: new Date(),
     description: "تأخرت الرحلة لمدة 5 ساعات مما تسبب في فوات رحلة الربط.",
     customerName: "أحمد محمد",
     customerPhone: "0501234567",
     customerEmail: "ahmed@example.com",
-    flightFrom: "Riyadh",
-    flightTo: "London",
+    flightFrom: "RUH",
+    flightTo: "LHR",
     flightScheduledTime: new Date(),
+    delayHours: 5,
+    eligibilityStatus: "likely_eligible",
+    estimatedSdrAmount: 50,
+    estimatedSarAmount: 255,
   });
   
   await storage.createTimelineEvent({
@@ -750,15 +813,20 @@ async function seedDatabase() {
   });
 
   const c2 = await storage.createClaim({
-    category: "delivery",
-    issueType: "damaged",
-    companyName: "Noon",
-    referenceNumber: "ORD-998877",
+    category: "flight",
+    issueType: "cancel",
+    companyName: "طيران ناس",
+    referenceNumber: "XY9988",
     incidentDate: new Date(),
-    description: "وصل المنتج مكسوراً والتغليف تالف.",
+    description: "تم إلغاء الرحلة بدون إشعار مسبق.",
     customerName: "سارة علي",
     customerPhone: "0559988776",
-    deliveryCity: "Jeddah",
+    customerEmail: "sara@example.com",
+    flightFrom: "JED",
+    flightTo: "DXB",
+    eligibilityStatus: "likely_eligible",
+    estimatedSdrAmount: 150,
+    estimatedSarAmount: 765,
   });
 
   await storage.createTimelineEvent({

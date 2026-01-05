@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,12 +11,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { FileUpload } from "@/components/ui/FileUpload";
-import { CheckCircle2, Plane, Package, ChevronLeft, ChevronRight, Loader2, Sparkles, Copy, Check, Clock } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { 
+  CheckCircle2, Plane, ChevronLeft, ChevronRight, Loader2, Sparkles, 
+  Copy, Check, Clock, XCircle, AlertTriangle, Scale, Calculator, FileCheck
+} from "lucide-react";
 import { Link } from "wouter";
+
+const SDR_TO_SAR = 5.1; // Default rate, can be fetched from settings
 
 const wizardSchema = insertClaimSchema.extend({
   termsAccepted: z.literal(true, {
     errorMap: () => ({ message: "يجب الموافقة على الشروط والأحكام" }),
+  }),
+  consentGiven: z.literal(true, {
+    errorMap: () => ({ message: "يجب الموافقة على التوكيل" }),
   }),
 });
 
@@ -29,10 +38,73 @@ const fadeSlide = {
   transition: { duration: 0.3, ease: "easeOut" }
 };
 
+const DISRUPTION_TYPES = [
+  { value: "delay", label: "تأخير الرحلة", icon: Clock, desc: "تأخرت رحلتي عن موعدها" },
+  { value: "cancel", label: "إلغاء الرحلة", icon: XCircle, desc: "تم إلغاء رحلتي" },
+  { value: "denied_boarding", label: "رفض الصعود", icon: AlertTriangle, desc: "رُفض صعودي للطائرة" },
+  { value: "missed_connection", label: "فوات الاتصال", icon: Plane, desc: "فاتتني رحلتي التالية بسبب التأخير" },
+];
+
+function calculateEligibility(issueType: string, delayHours: number): { 
+  status: string; 
+  sdrAmount: number; 
+  sarAmount: number;
+  message: string;
+} {
+  if (issueType === "delay") {
+    if (delayHours >= 6) {
+      return {
+        status: "likely_eligible",
+        sdrAmount: 150,
+        sarAmount: Math.round(150 * SDR_TO_SAR),
+        message: "مؤهل للتعويض: 150 وحدة سحب خاصة"
+      };
+    } else if (delayHours >= 3) {
+      return {
+        status: "likely_eligible", 
+        sdrAmount: 50,
+        sarAmount: Math.round(50 * SDR_TO_SAR),
+        message: "مؤهل للتعويض: 50 وحدة سحب خاصة"
+      };
+    } else {
+      return {
+        status: "not_eligible",
+        sdrAmount: 0,
+        sarAmount: 0,
+        message: "التأخير أقل من 3 ساعات - قد لا تكون مؤهلاً للتعويض"
+      };
+    }
+  } else if (issueType === "cancel") {
+    return {
+      status: "likely_eligible",
+      sdrAmount: 150,
+      sarAmount: Math.round(150 * SDR_TO_SAR),
+      message: "مؤهل للتعويض: إلغاء الرحلة يستحق تعويضاً"
+    };
+  } else if (issueType === "denied_boarding") {
+    return {
+      status: "likely_eligible",
+      sdrAmount: 150,
+      sarAmount: Math.round(150 * SDR_TO_SAR),
+      message: "مؤهل للتعويض: رفض الصعود يستحق تعويضاً"
+    };
+  } else if (issueType === "missed_connection") {
+    return {
+      status: "possibly_eligible",
+      sdrAmount: 150,
+      sarAmount: Math.round(150 * SDR_TO_SAR),
+      message: "قد تكون مؤهلاً للتعويض حسب ظروف الرحلة"
+    };
+  }
+  return { status: "unknown", sdrAmount: 0, sarAmount: 0, message: "" };
+}
+
 export default function ClaimWizard() {
   const [step, setStep] = useState(1);
   const [claimId, setClaimId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [eligibility, setEligibility] = useState<ReturnType<typeof calculateEligibility> | null>(null);
+  const [delayHours, setDelayHours] = useState<number>(0);
   const createClaim = useCreateClaim();
 
   const form = useForm<WizardData>({
@@ -46,27 +118,39 @@ export default function ClaimWizard() {
       issueType: "",
       companyName: "",
       referenceNumber: "",
+      flightFrom: "",
+      flightTo: "",
     },
     mode: "onChange",
   });
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = form;
-  const category = watch("category");
+  const issueType = watch("issueType");
+
+  useEffect(() => {
+    if (issueType && step === 3) {
+      const result = calculateEligibility(issueType, delayHours);
+      setEligibility(result);
+      setValue("eligibilityStatus", result.status);
+      setValue("estimatedSdrAmount", result.sdrAmount);
+      setValue("estimatedSarAmount", result.sarAmount);
+    }
+  }, [issueType, delayHours, step, setValue]);
 
   const onSubmit = (data: WizardData) => {
-    createClaim.mutate(data, {
+    const submitData = {
+      ...data,
+      delayHours: delayHours,
+    };
+    createClaim.mutate(submitData as any, {
       onSuccess: (response) => {
         setClaimId(response.claimId);
-        setStep(4);
+        setStep(5);
       },
     });
   };
 
-  const nextStep = () => {
-    // Block delivery claims - coming soon
-    if (category === "delivery") return;
-    setStep(s => Math.min(s + 1, 4));
-  };
+  const nextStep = () => setStep(s => Math.min(s + 1, 5));
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
   const copyToClipboard = () => {
@@ -77,8 +161,8 @@ export default function ClaimWizard() {
     }
   };
 
-  // Success Screen
-  if (step === 4 && claimId) {
+  // Success Screen (Step 5)
+  if (step === 5 && claimId) {
     return (
       <div className="min-h-[80svh] flex items-center justify-center p-4">
         <motion.div
@@ -98,7 +182,7 @@ export default function ClaimWizard() {
           </motion.div>
 
           <div className="space-y-2">
-            <h2 className="text-2xl md:text-3xl font-bold">تم استلام طلبك بنجاح!</h2>
+            <h2 className="text-2xl md:text-3xl font-bold">تم استلام مطالبتك!</h2>
             <p className="text-muted-foreground">رقم المطالبة الخاص بك:</p>
           </div>
 
@@ -109,7 +193,7 @@ export default function ClaimWizard() {
             className="relative group"
           >
             <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6 rounded-3xl border-2 border-dashed border-primary/30">
-              <span className="text-2xl md:text-3xl font-mono font-bold tracking-widest text-foreground">
+              <span className="text-2xl md:text-3xl font-mono font-bold tracking-widest text-foreground" data-testid="text-claim-id">
                 {claimId}
               </span>
             </div>
@@ -118,23 +202,24 @@ export default function ClaimWizard() {
               size="icon"
               onClick={copyToClipboard}
               className="absolute left-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+              data-testid="button-copy-claim-id"
             >
               {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </Button>
           </motion.div>
 
           <p className="text-sm text-muted-foreground px-4">
-            احتفظ بهذا الرقم لمتابعة حالة الطلب. سنتواصل معك عبر الواتساب والبريد الإلكتروني.
+            احتفظ بهذا الرقم لمتابعة حالة المطالبة. سنتواصل معك قريباً.
           </p>
 
           <div className="flex flex-col gap-3 pt-4">
             <Link href="/track">
-              <Button className="w-full h-14 text-lg rounded-2xl shadow-lg btn-gradient">
-                تتبع حالة الطلب
+              <Button className="w-full h-14 text-lg rounded-2xl shadow-lg btn-gradient" data-testid="button-track-new-claim">
+                تتبع حالة المطالبة
               </Button>
             </Link>
             <Link href="/">
-              <Button variant="outline" className="w-full h-14 text-lg rounded-2xl">
+              <Button variant="outline" className="w-full h-14 text-lg rounded-2xl" data-testid="button-back-home">
                 العودة للرئيسية
               </Button>
             </Link>
@@ -145,9 +230,10 @@ export default function ClaimWizard() {
   }
 
   const steps = [
-    { num: 1, label: "نوع المطالبة" },
-    { num: 2, label: "التفاصيل" },
-    { num: 3, label: "التواصل" },
+    { num: 1, label: "بيانات الرحلة" },
+    { num: 2, label: "نوع المشكلة" },
+    { num: 3, label: "تحليل الأهلية" },
+    { num: 4, label: "المستندات والتوكيل" },
   ];
 
   return (
@@ -160,7 +246,7 @@ export default function ClaimWizard() {
             <div className="absolute top-5 right-8 left-8 h-1 bg-muted rounded-full -z-10" />
             <div 
               className="absolute top-5 right-8 h-1 bg-primary rounded-full -z-10 transition-all duration-500"
-              style={{ width: `${((step - 1) / 2) * 100}%` }}
+              style={{ width: `${((step - 1) / 3) * 100}%` }}
             />
             
             {steps.map((s) => (
@@ -186,67 +272,72 @@ export default function ClaimWizard() {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <AnimatePresence mode="wait">
-            {/* Step 1: Category Selection */}
+            {/* Step 1: Flight Details */}
             {step === 1 && (
               <motion.div key="step1" {...fadeSlide} className="space-y-8">
                 <div className="text-center space-y-2">
-                  <h1 className="text-2xl md:text-3xl font-bold">اختر نوع المطالبة</h1>
-                  <p className="text-muted-foreground">ما هو نوع الخدمة التي واجهت مشكلة فيها؟</p>
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center mb-4">
+                    <Plane className="h-8 w-8 text-white" />
+                  </div>
+                  <h1 className="text-2xl md:text-3xl font-bold">بيانات الرحلة</h1>
+                  <p className="text-muted-foreground">أدخل معلومات رحلتك الأساسية</p>
                 </div>
 
-                <RadioGroup 
-                  onValueChange={(val) => setValue("category", val)} 
-                  defaultValue={category}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-                >
-                  {/* Flight Option - Active */}
-                  <Label 
-                    className={`
-                      cursor-pointer border-2 rounded-3xl p-6 transition-all duration-300 
-                      hover:border-primary/50 hover:shadow-lg
-                      ${category === "flight" 
-                        ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' 
-                        : 'border-border bg-card'
-                      }
-                    `}
-                  >
-                    <RadioGroupItem value="flight" className="sr-only" />
-                    <div className="flex flex-col items-center text-center gap-4">
-                      <div className={`
-                        p-4 rounded-2xl transition-all duration-300
-                        ${category === "flight" 
-                          ? 'bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg' 
-                          : 'bg-muted text-muted-foreground'
-                        }
-                      `}>
-                        <Plane className="h-8 w-8" />
-                      </div>
-                      <div>
-                        <span className="block text-lg font-bold">طيران</span>
-                        <span className="text-sm text-muted-foreground">تأخير، إلغاء، أمتعة</span>
-                      </div>
-                    </div>
-                  </Label>
+                <div className="space-y-5 bg-card p-6 md:p-8 rounded-3xl border shadow-sm">
+                  <div className="space-y-2">
+                    <Label>شركة الطيران *</Label>
+                    <Input 
+                      {...register("companyName")} 
+                      placeholder="مثال: الخطوط السعودية" 
+                      className="h-12 rounded-xl"
+                      data-testid="input-airline"
+                    />
+                    {errors.companyName && <span className="text-destructive text-xs">{errors.companyName.message}</span>}
+                  </div>
 
-                  {/* Delivery Option - Coming Soon */}
-                  <div 
-                    className="relative border-2 rounded-3xl p-6 border-border bg-muted/30 opacity-60 cursor-not-allowed"
-                  >
-                    <div className="absolute top-3 left-3 flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-3 py-1 rounded-full text-xs font-bold">
-                      <Clock className="h-3 w-3" />
-                      قريباً
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>رقم الرحلة / الحجز *</Label>
+                      <Input 
+                        {...register("referenceNumber")} 
+                        placeholder="SV123" 
+                        className="h-12 rounded-xl" 
+                        dir="ltr"
+                        data-testid="input-flight-number"
+                      />
                     </div>
-                    <div className="flex flex-col items-center text-center gap-4">
-                      <div className="p-4 rounded-2xl bg-muted text-muted-foreground">
-                        <Package className="h-8 w-8" />
-                      </div>
-                      <div>
-                        <span className="block text-lg font-bold text-muted-foreground">توصيل</span>
-                        <span className="text-sm text-muted-foreground">متاجر إلكترونية، تطبيقات</span>
-                      </div>
+                    <div className="space-y-2">
+                      <Label>تاريخ الرحلة *</Label>
+                      <Input 
+                        type="date" 
+                        {...register("incidentDate")} 
+                        className="h-12 rounded-xl"
+                        data-testid="input-flight-date"
+                      />
                     </div>
                   </div>
-                </RadioGroup>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>من (مطار المغادرة)</Label>
+                      <Input 
+                        {...register("flightFrom")} 
+                        placeholder="RUH - الرياض" 
+                        className="h-12 rounded-xl"
+                        data-testid="input-flight-from"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>إلى (مطار الوصول)</Label>
+                      <Input 
+                        {...register("flightTo")} 
+                        placeholder="JED - جدة" 
+                        className="h-12 rounded-xl"
+                        data-testid="input-flight-to"
+                      />
+                    </div>
+                  </div>
+                </div>
 
                 <div className="flex justify-end pt-4">
                   <Button 
@@ -254,7 +345,7 @@ export default function ClaimWizard() {
                     onClick={nextStep} 
                     size="lg" 
                     className="h-14 px-8 text-lg rounded-2xl shadow-lg btn-gradient"
-                    disabled={category === "delivery"}
+                    data-testid="button-next-step1"
                   >
                     التالي
                     <ChevronLeft className="mr-2 h-5 w-5" />
@@ -263,62 +354,88 @@ export default function ClaimWizard() {
               </motion.div>
             )}
 
-            {/* Step 2: Incident Details */}
+            {/* Step 2: Disruption Type */}
             {step === 2 && (
               <motion.div key="step2" {...fadeSlide} className="space-y-8">
                 <div className="text-center space-y-2">
-                  <h1 className="text-2xl md:text-3xl font-bold">تفاصيل المشكلة</h1>
-                  <p className="text-muted-foreground">زودنا بالمعلومات المطلوبة</p>
+                  <h1 className="text-2xl md:text-3xl font-bold">ما المشكلة التي واجهتها؟</h1>
+                  <p className="text-muted-foreground">اختر نوع المشكلة التي حدثت في رحلتك</p>
                 </div>
 
-                <div className="space-y-5 bg-card p-6 md:p-8 rounded-3xl border shadow-sm">
-                  <div className="space-y-2">
-                    <Label>نوع المشكلة *</Label>
-                    <Input 
-                      {...register("issueType")} 
-                      placeholder="مثال: تأخير أكثر من 3 ساعات" 
-                      className="h-12 rounded-xl"
-                    />
-                    {errors.issueType && <span className="text-destructive text-xs">{errors.issueType.message}</span>}
-                  </div>
+                <RadioGroup 
+                  onValueChange={(val) => setValue("issueType", val)} 
+                  defaultValue={issueType}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                >
+                  {DISRUPTION_TYPES.map((type) => (
+                    <Label 
+                      key={type.value}
+                      className={`
+                        cursor-pointer border-2 rounded-3xl p-6 transition-all duration-300 
+                        hover:border-primary/50 hover:shadow-lg
+                        ${issueType === type.value 
+                          ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' 
+                          : 'border-border bg-card'
+                        }
+                      `}
+                    >
+                      <RadioGroupItem value={type.value} className="sr-only" />
+                      <div className="flex flex-col items-center text-center gap-3">
+                        <div className={`
+                          p-3 rounded-xl transition-all duration-300
+                          ${issueType === type.value 
+                            ? 'bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg' 
+                            : 'bg-muted text-muted-foreground'
+                          }
+                        `}>
+                          <type.icon className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <span className="block font-bold">{type.label}</span>
+                          <span className="text-xs text-muted-foreground">{type.desc}</span>
+                        </div>
+                      </div>
+                    </Label>
+                  ))}
+                </RadioGroup>
 
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>{category === 'flight' ? 'شركة الطيران *' : 'المتجر / التطبيق *'}</Label>
-                      <Input {...register("companyName")} className="h-12 rounded-xl" />
+                {issueType === "delay" && (
+                  <div className="bg-card p-6 rounded-3xl border shadow-sm space-y-4">
+                    <Label className="text-lg font-medium">كم كانت مدة التأخير؟</Label>
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { hours: 1, label: "أقل من 3 ساعات" },
+                        { hours: 4, label: "3-6 ساعات" },
+                        { hours: 7, label: "أكثر من 6 ساعات" },
+                      ].map((option) => (
+                        <Button
+                          key={option.hours}
+                          type="button"
+                          variant={delayHours === option.hours ? "default" : "outline"}
+                          onClick={() => setDelayHours(option.hours)}
+                          className="rounded-xl"
+                          data-testid={`button-delay-${option.hours}`}
+                        >
+                          {option.label}
+                        </Button>
+                      ))}
                     </div>
-                    <div className="space-y-2">
-                      <Label>{category === 'flight' ? 'رقم الرحلة / الحجز *' : 'رقم الطلب *'}</Label>
-                      <Input {...register("referenceNumber")} className="h-12 rounded-xl" dir="ltr" />
-                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label>تاريخ الحادثة *</Label>
-                    <Input type="date" {...register("incidentDate")} className="h-12 rounded-xl" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>وصف المشكلة *</Label>
-                    <Textarea 
-                      {...register("description")} 
-                      placeholder="اشرح ما حدث بالتفصيل..." 
-                      className="min-h-[120px] rounded-xl resize-none"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>المرفقات (اختياري)</Label>
-                    <FileUpload onUploadComplete={(file) => console.log("Uploaded", file)} />
-                  </div>
-                </div>
+                )}
 
                 <div className="flex justify-between gap-4 pt-4">
-                  <Button type="button" variant="outline" onClick={prevStep} size="lg" className="h-14 px-6 rounded-2xl">
+                  <Button type="button" variant="outline" onClick={prevStep} size="lg" className="h-14 px-6 rounded-2xl" data-testid="button-prev-step2">
                     <ChevronRight className="ml-2 h-5 w-5" />
                     السابق
                   </Button>
-                  <Button type="button" onClick={nextStep} size="lg" className="h-14 px-8 rounded-2xl shadow-lg btn-gradient flex-1 sm:flex-none">
+                  <Button 
+                    type="button" 
+                    onClick={nextStep} 
+                    size="lg" 
+                    className="h-14 px-8 rounded-2xl shadow-lg btn-gradient flex-1 sm:flex-none"
+                    disabled={!issueType || (issueType === "delay" && delayHours === 0)}
+                    data-testid="button-next-step2"
+                  >
                     التالي
                     <ChevronLeft className="mr-2 h-5 w-5" />
                   </Button>
@@ -326,59 +443,196 @@ export default function ClaimWizard() {
               </motion.div>
             )}
 
-            {/* Step 3: Contact Info */}
+            {/* Step 3: Eligibility Preview */}
             {step === 3 && (
               <motion.div key="step3" {...fadeSlide} className="space-y-8">
                 <div className="text-center space-y-2">
-                  <h1 className="text-2xl md:text-3xl font-bold">بيانات التواصل</h1>
-                  <p className="text-muted-foreground">كيف نتواصل معك؟</p>
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-green-500 to-emerald-400 rounded-2xl flex items-center justify-center mb-4">
+                    <Calculator className="h-8 w-8 text-white" />
+                  </div>
+                  <h1 className="text-2xl md:text-3xl font-bold">تحليل الأهلية</h1>
+                  <p className="text-muted-foreground">بناءً على المعلومات المقدمة</p>
+                </div>
+
+                {eligibility && (
+                  <Card className={`${
+                    eligibility.status === "likely_eligible" ? "border-green-500 bg-green-50 dark:bg-green-950/20" :
+                    eligibility.status === "possibly_eligible" ? "border-amber-500 bg-amber-50 dark:bg-amber-950/20" :
+                    "border-red-500 bg-red-50 dark:bg-red-950/20"
+                  }`}>
+                    <CardContent className="p-6 space-y-6">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-xl ${
+                          eligibility.status === "likely_eligible" ? "bg-green-500" :
+                          eligibility.status === "possibly_eligible" ? "bg-amber-500" :
+                          "bg-red-500"
+                        }`}>
+                          {eligibility.status === "likely_eligible" ? (
+                            <CheckCircle2 className="h-8 w-8 text-white" />
+                          ) : eligibility.status === "possibly_eligible" ? (
+                            <AlertTriangle className="h-8 w-8 text-white" />
+                          ) : (
+                            <XCircle className="h-8 w-8 text-white" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold">
+                            {eligibility.status === "likely_eligible" ? "مؤهل للتعويض!" :
+                             eligibility.status === "possibly_eligible" ? "قد تكون مؤهلاً" :
+                             "غير مؤهل"}
+                          </h3>
+                          <p className="text-muted-foreground">{eligibility.message}</p>
+                        </div>
+                      </div>
+
+                      {eligibility.sdrAmount > 0 && (
+                        <div className="bg-background rounded-2xl p-6 space-y-4">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Scale className="h-5 w-5" />
+                            <span className="font-medium">التعويض المتوقع</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-center">
+                            <div className="p-4 bg-muted/50 rounded-xl">
+                              <div className="text-2xl font-bold text-primary">{eligibility.sdrAmount} SDR</div>
+                              <div className="text-xs text-muted-foreground">وحدة سحب خاصة</div>
+                            </div>
+                            <div className="p-4 bg-muted/50 rounded-xl">
+                              <div className="text-2xl font-bold text-green-600">{eligibility.sarAmount} ر.س</div>
+                              <div className="text-xs text-muted-foreground">تقريباً</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-xl">
+                        <AlertTriangle className="h-4 w-4 inline ml-1" />
+                        <strong>تنويه:</strong> الأهلية النهائية تعتمد على سبب التأخير (استثناءات: ظروف جوية، أمن الطيران). هذا تقدير أولي.
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <div className="flex justify-between gap-4 pt-4">
+                  <Button type="button" variant="outline" onClick={prevStep} size="lg" className="h-14 px-6 rounded-2xl" data-testid="button-prev-step3">
+                    <ChevronRight className="ml-2 h-5 w-5" />
+                    السابق
+                  </Button>
+                  <Button 
+                    type="button" 
+                    onClick={nextStep} 
+                    size="lg" 
+                    className="h-14 px-8 rounded-2xl shadow-lg btn-gradient flex-1 sm:flex-none"
+                    data-testid="button-next-step3"
+                  >
+                    متابعة
+                    <ChevronLeft className="mr-2 h-5 w-5" />
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 4: Evidence + Consent */}
+            {step === 4 && (
+              <motion.div key="step4" {...fadeSlide} className="space-y-8">
+                <div className="text-center space-y-2">
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-500 to-pink-400 rounded-2xl flex items-center justify-center mb-4">
+                    <FileCheck className="h-8 w-8 text-white" />
+                  </div>
+                  <h1 className="text-2xl md:text-3xl font-bold">المستندات والتوكيل</h1>
+                  <p className="text-muted-foreground">أكمل بياناتك للمتابعة</p>
                 </div>
 
                 <div className="space-y-5 bg-card p-6 md:p-8 rounded-3xl border shadow-sm">
                   <div className="space-y-2">
                     <Label>الاسم الكامل *</Label>
-                    <Input {...register("customerName")} className="h-12 rounded-xl" />
+                    <Input 
+                      {...register("customerName")} 
+                      className="h-12 rounded-xl"
+                      data-testid="input-customer-name"
+                    />
                     {errors.customerName && <span className="text-destructive text-xs">{errors.customerName.message}</span>}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>رقم الجوال *</Label>
-                    <Input 
-                      {...register("customerPhone")} 
-                      type="tel" 
-                      placeholder="05xxxxxxxx" 
-                      className="h-12 rounded-xl" 
-                      dir="ltr"
-                    />
-                    {errors.customerPhone && <span className="text-destructive text-xs">{errors.customerPhone.message}</span>}
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>رقم الجوال *</Label>
+                      <Input 
+                        {...register("customerPhone")} 
+                        type="tel" 
+                        placeholder="05xxxxxxxx" 
+                        className="h-12 rounded-xl" 
+                        dir="ltr"
+                        data-testid="input-customer-phone"
+                      />
+                      {errors.customerPhone && <span className="text-destructive text-xs">{errors.customerPhone.message}</span>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>البريد الإلكتروني</Label>
+                      <Input 
+                        {...register("customerEmail")} 
+                        type="email" 
+                        className="h-12 rounded-xl" 
+                        dir="ltr"
+                        data-testid="input-customer-email"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>البريد الإلكتروني</Label>
-                    <Input 
-                      {...register("customerEmail")} 
-                      type="email" 
-                      className="h-12 rounded-xl" 
-                      dir="ltr"
+                    <Label>وصف المشكلة *</Label>
+                    <Textarea 
+                      {...register("description")} 
+                      placeholder="اشرح ما حدث بالتفصيل..." 
+                      className="min-h-[100px] rounded-xl resize-none"
+                      data-testid="input-description"
                     />
                   </div>
 
-                  <div className="flex items-start gap-3 pt-4 p-4 bg-muted/50 rounded-2xl">
+                  <div className="space-y-2">
+                    <Label>المرفقات (بطاقة الصعود، التذكرة، إلخ)</Label>
+                    <FileUpload onUploadComplete={(file) => console.log("Uploaded", file)} />
+                  </div>
+                </div>
+
+                {/* Consent Section */}
+                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-6 rounded-3xl space-y-4">
+                  <h3 className="font-bold text-lg flex items-center gap-2">
+                    <Scale className="h-5 w-5 text-amber-600" />
+                    التوكيل والموافقة
+                  </h3>
+                  
+                  <div className="flex items-start gap-3 p-4 bg-background rounded-2xl">
+                    <input 
+                      type="checkbox" 
+                      id="consent" 
+                      {...register("consentGiven")}
+                      className="h-5 w-5 mt-0.5 rounded border-2 border-primary text-primary focus:ring-primary"
+                      data-testid="checkbox-consent"
+                    />
+                    <Label htmlFor="consent" className="text-sm cursor-pointer leading-relaxed">
+                      أفوّض منصة <span className="text-primary font-bold">سند</span> بالتقدم بمطالبتي والتفاوض مع شركة الطيران نيابة عني، 
+                      وأدرك أن الحصول على التعويض غير مضمون ويعتمد على ظروف الرحلة وقرار الناقل الجوي.
+                    </Label>
+                  </div>
+                  {errors.consentGiven && <span className="text-destructive text-xs">{errors.consentGiven.message}</span>}
+
+                  <div className="flex items-start gap-3 p-4 bg-background rounded-2xl">
                     <input 
                       type="checkbox" 
                       id="terms" 
                       {...register("termsAccepted")}
                       className="h-5 w-5 mt-0.5 rounded border-2 border-primary text-primary focus:ring-primary"
+                      data-testid="checkbox-terms"
                     />
                     <Label htmlFor="terms" className="text-sm cursor-pointer leading-relaxed">
-                      أوافق على <span className="text-primary underline font-medium">الشروط والأحكام</span> وسياسة الخصوصية وتوكيل منصة سند بالمطالبة نيابة عني.
+                      أوافق على <span className="text-primary underline font-medium">الشروط والأحكام</span> وسياسة الخصوصية.
                     </Label>
                   </div>
                   {errors.termsAccepted && <span className="text-destructive text-xs">{errors.termsAccepted.message}</span>}
                 </div>
 
                 <div className="flex justify-between gap-4 pt-4">
-                  <Button type="button" variant="outline" onClick={prevStep} size="lg" className="h-14 px-6 rounded-2xl">
+                  <Button type="button" variant="outline" onClick={prevStep} size="lg" className="h-14 px-6 rounded-2xl" data-testid="button-prev-step4">
                     <ChevronRight className="ml-2 h-5 w-5" />
                     السابق
                   </Button>
@@ -387,6 +641,7 @@ export default function ClaimWizard() {
                     size="lg" 
                     className="h-14 px-8 rounded-2xl shadow-lg btn-gradient flex-1 sm:flex-none gap-2"
                     disabled={createClaim.isPending}
+                    data-testid="button-submit-claim"
                   >
                     {createClaim.isPending ? (
                       <Loader2 className="h-5 w-5 animate-spin" />

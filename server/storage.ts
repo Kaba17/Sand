@@ -7,6 +7,7 @@ import {
   settlements,
   flightVerifications,
   aiOutputs,
+  systemSettings,
   type Claim,
   type InsertClaim,
   type UpdateClaimRequest,
@@ -16,6 +17,7 @@ import {
   type Settlement,
   type FlightVerification,
   type AiOutput,
+  type SystemSetting,
   type InsertAttachment,
   type InsertTimelineEvent,
   type InsertCommunication,
@@ -59,6 +61,11 @@ export interface IStorage extends IAuthStorage {
   // AI Outputs
   getAiOutput(claimId: number): Promise<AiOutput | undefined>;
   upsertAiOutput(claimId: number, output: Partial<InsertAiOutput>): Promise<AiOutput>;
+  
+  // System Settings
+  getAllSettings(): Promise<SystemSetting[]>;
+  getSetting(key: string): Promise<string | null>;
+  upsertSetting(key: string, value: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -243,6 +250,27 @@ export class DatabaseStorage implements IStorage {
         ...output
       }).returning();
       return created;
+    }
+  }
+
+  // System Settings
+  async getAllSettings(): Promise<SystemSetting[]> {
+    return await db.select().from(systemSettings);
+  }
+
+  async getSetting(key: string): Promise<string | null> {
+    const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
+    return setting?.value || null;
+  }
+
+  async upsertSetting(key: string, value: string): Promise<void> {
+    const existing = await this.getSetting(key);
+    if (existing !== null) {
+      await db.update(systemSettings)
+        .set({ value, updatedAt: new Date() })
+        .where(eq(systemSettings.key, key));
+    } else {
+      await db.insert(systemSettings).values({ key, value });
     }
   }
 }

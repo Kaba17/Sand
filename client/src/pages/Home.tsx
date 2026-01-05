@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Plane, Package, ChevronLeft, Shield, Clock, Coins, FileText, Star, ArrowDown, CheckCircle, Timer } from "lucide-react";
+import { Plane, ChevronLeft, Shield, Clock, Coins, FileText, Star, ArrowDown, CheckCircle, Scale } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 
@@ -21,7 +21,6 @@ export default function Home() {
     offset: ["start start", "end start"]
   });
   
-  const y = useTransform(scrollYProgress, [0, 1], [0, 150]);
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
   return (
@@ -41,8 +40,8 @@ export default function Home() {
           >
             {/* Badge */}
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
-              <Star className="w-4 h-4 fill-primary" />
-              <span>موثوق من آلاف العملاء</span>
+              <Scale className="w-4 h-4" />
+              <span>بناءً على حقوق المسافر السعودي</span>
             </motion.div>
             
             {/* Main Heading */}
@@ -50,16 +49,16 @@ export default function Home() {
               variants={fadeUp}
               className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-tight"
             >
-              <span className="block">حقك</span>
-              <span className="text-gradient">محفوظ معنا</span>
+              <span className="block">رحلتك تأخرت؟</span>
+              <span className="text-gradient">اكتشف تعويضك في دقيقة</span>
             </motion.h1>
             
             <motion.p 
               variants={fadeUp}
               className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed px-4"
             >
-              هل واجهت مشاكل في رحلتك أو توصيل طلباتك؟
-              منصة <span className="text-primary font-bold">سند</span> تساعدك في الحصول على التعويض المستحق بكل سهولة
+              تأخير، إلغاء، أو رفض صعود؟
+              منصة <span className="text-primary font-bold">سند</span> تحلل أهليتك للتعويض وتتابع مطالبتك باحترافية
             </motion.p>
             
             {/* CTA Buttons */}
@@ -70,11 +69,11 @@ export default function Home() {
               <Button 
                 asChild
                 size="lg" 
-                data-testid="button-new-claim"
+                data-testid="button-check-eligibility"
                 className="w-full sm:w-auto h-14 px-8 text-lg font-bold rounded-2xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-1 transition-all btn-gradient"
               >
                 <Link href="/new">
-                  ابدأ مطالبة جديدة
+                  تحقق من أهليتك
                   <ChevronLeft className="mr-2 h-5 w-5" />
                 </Link>
               </Button>
@@ -86,7 +85,7 @@ export default function Home() {
                 className="w-full sm:w-auto h-14 px-8 text-lg font-bold rounded-2xl border-2 hover:bg-muted/50"
               >
                 <Link href="/track">
-                  تتبع حالة الطلب
+                  تتبع مطالبتك
                 </Link>
               </Button>
             </motion.div>
@@ -102,11 +101,11 @@ export default function Home() {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>دعم على مدار الساعة</span>
+                <span>تحليل فوري للأهلية</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>نجاح مضمون أو مجاني</span>
+                <span>متابعة احترافية</span>
               </div>
             </motion.div>
           </motion.div>
@@ -130,7 +129,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Service Cards */}
+      {/* Flight Claims Feature */}
       <section className="py-20 md:py-32 bg-muted/30">
         <div className="container px-4">
           <motion.div 
@@ -139,12 +138,11 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center max-w-2xl mx-auto mb-16"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">خدماتنا</h2>
-            <p className="text-muted-foreground text-lg">نساعدك في استرداد حقوقك من مختلف الخدمات</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">تعويضات الرحلات الجوية</h2>
+            <p className="text-muted-foreground text-lg">نساعدك في استرداد حقوقك حسب لوائح الهيئة العامة للطيران المدني</p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* Flight Claims - Active */}
+          <div className="max-w-3xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -155,47 +153,25 @@ export default function Home() {
                 <Plane className="h-8 w-8 text-white" />
               </div>
               
-              <h3 className="text-2xl font-bold mb-3">تعويضات الطيران</h3>
-              <p className="text-muted-foreground mb-6 leading-relaxed">تأخير الرحلات، إلغاء الحجوزات، فقدان الأمتعة، ورفض الصعود.</p>
+              <h3 className="text-2xl font-bold mb-3">أنواع المطالبات المدعومة</h3>
+              <p className="text-muted-foreground mb-6 leading-relaxed">نغطي جميع حالات تعطل الرحلات وفقاً لحقوق المسافر السعودي</p>
               
-              <ul className="space-y-2">
-                {["تعويض يصل لـ 600 يورو", "متابعة احترافية", "بدون رسوم مقدمة"].map((f, j) => (
-                  <li key={j} className="flex items-center gap-2 text-sm">
-                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span>{f}</span>
-                  </li>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {[
+                  { title: "تأخير الرحلة", desc: "تعويض حسب مدة التأخير" },
+                  { title: "إلغاء الرحلة", desc: "استرداد كامل أو تعويض" },
+                  { title: "رفض الصعود", desc: "تعويض مالي + بدائل" },
+                  { title: "فقدان الاتصال", desc: "تعويض الرحلات المتصلة" },
+                ].map((item, j) => (
+                  <div key={j} className="flex items-start gap-3 p-4 bg-muted/50 rounded-xl">
+                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-medium block">{item.title}</span>
+                      <span className="text-sm text-muted-foreground">{item.desc}</span>
+                    </div>
+                  </div>
                 ))}
-              </ul>
-            </motion.div>
-
-            {/* Delivery Claims - Coming Soon */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="relative bg-card rounded-3xl p-8 border shadow-sm overflow-hidden opacity-60"
-            >
-              <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-full text-sm font-bold">
-                <Timer className="h-4 w-4" />
-                قريباً
               </div>
-
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-400 flex items-center justify-center mb-6 shadow-lg">
-                <Package className="h-8 w-8 text-white" />
-              </div>
-              
-              <h3 className="text-2xl font-bold mb-3 text-muted-foreground">تعويضات التوصيل</h3>
-              <p className="text-muted-foreground mb-6 leading-relaxed">تأخر الطلبات، تلف الشحنات، منتجات ناقصة، وأخطاء المتاجر.</p>
-              
-              <ul className="space-y-2">
-                {["استرداد كامل المبلغ", "تعويض عن الأضرار", "حل سريع"].map((f, j) => (
-                  <li key={j} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle className="w-4 h-4 text-muted-foreground/50 flex-shrink-0" />
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
             </motion.div>
           </div>
         </div>
@@ -219,9 +195,9 @@ export default function Home() {
             <div className="hidden md:block absolute top-24 right-[16%] left-[16%] h-0.5 bg-gradient-to-l from-primary/20 via-primary to-primary/20" />
             
             {[
-              { icon: FileText, title: "قدم طلبك", desc: "أجب عن أسئلة بسيطة وارفع المستندات في دقائق معدودة.", num: "01" },
-              { icon: Clock, title: "نحن نتابع", desc: "فريقنا يدرس الحالة ويتفاوض مع الشركات نيابة عنك.", num: "02" },
-              { icon: Coins, title: "استلم تعويضك", desc: "بعد النجاح، نحول المبلغ لحسابك بعد خصم أتعابنا فقط.", num: "03" }
+              { icon: FileText, title: "أدخل بياناتك", desc: "أجب عن أسئلة بسيطة عن رحلتك ونوع المشكلة.", num: "01" },
+              { icon: Clock, title: "تحليل الأهلية", desc: "نحسب تعويضك المتوقع فوراً بناءً على اللوائح.", num: "02" },
+              { icon: Coins, title: "نتابع نيابة عنك", desc: "نتواصل مع شركة الطيران ونحول تعويضك.", num: "03" }
             ].map((step, i) => (
               <motion.div 
                 key={i}
@@ -291,11 +267,11 @@ export default function Home() {
                 asChild
                 size="lg" 
                 variant="secondary" 
-                data-testid="button-cta-new-claim"
+                data-testid="button-cta-check-eligibility"
                 className="h-14 px-8 text-lg font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all"
               >
                 <Link href="/new">
-                  ابدأ المطالبة الآن
+                  تحقق من أهليتك الآن
                   <ChevronLeft className="mr-2 h-5 w-5" />
                 </Link>
               </Button>

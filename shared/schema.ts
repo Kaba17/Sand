@@ -11,7 +11,7 @@ export const claims = pgTable("claims", {
   id: serial("id").primaryKey(),
   claimId: text("claim_id").notNull().unique(), // Human readable ID like SAN-2026-00001
   category: text("category").notNull(), // 'flight' | 'delivery'
-  issueType: text("issue_type").notNull(),
+  issueType: text("issue_type").notNull(), // 'delay' | 'cancel' | 'denied_boarding' | 'missed_connection'
   status: text("status").notNull().default("new"), 
   companyName: text("company_name").notNull(),
   referenceNumber: text("reference_number").notNull(), // Booking ref / Order ID
@@ -28,17 +28,30 @@ export const claims = pgTable("claims", {
   flightTo: text("flight_to"),
   flightScheduledTime: timestamp("flight_scheduled_time"),
   flightActualTime: timestamp("flight_actual_time"),
+  delayHours: integer("delay_hours"), // For eligibility calculation
 
-  // Delivery Specific
-  deliveryCity: text("delivery_city"),
-  deliveryOrderTime: timestamp("delivery_order_time"),
-  deliveryDeliveryTime: timestamp("delivery_delivery_time"),
+  // Eligibility Preview (calculated client-side, stored for reference)
+  eligibilityStatus: text("eligibility_status"), // 'likely_eligible' | 'possibly_eligible' | 'not_eligible'
+  estimatedSdrAmount: integer("estimated_sdr_amount"), // SDR amount (50 or 150)
+  estimatedSarAmount: integer("estimated_sar_amount"), // SAR amount (calculated)
+
+  // Submission tracking
+  submittedToAirline: boolean("submitted_to_airline").default(false),
+  submissionChannel: text("submission_channel"), // 'email' | 'portal' | 'phone'
+  submissionDate: timestamp("submission_date"),
 
   // Admin/Internal
   draftText: text("draft_text"), // For manual claim drafting
   internalNotes: text("internal_notes"),
   
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const systemSettings = pgTable("system_settings", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -230,6 +243,11 @@ export const insertAiOutputSchema = createInsertSchema(aiOutputs).omit({
   updatedAt: true
 });
 
+export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({ 
+  id: true, 
+  updatedAt: true
+});
+
 // === EXPLICIT API CONTRACT TYPES ===
 
 export type Claim = typeof claims.$inferSelect;
@@ -240,6 +258,7 @@ export type Communication = typeof communications.$inferSelect;
 export type Settlement = typeof settlements.$inferSelect;
 export type FlightVerification = typeof flightVerifications.$inferSelect;
 export type AiOutput = typeof aiOutputs.$inferSelect;
+export type SystemSetting = typeof systemSettings.$inferSelect;
 
 // Insert types for sub-resources
 export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;

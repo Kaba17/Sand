@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, User, LogOut, LayoutDashboard, Menu, X, Bot, History } from "lucide-react";
+import { ShieldCheck, User, LogOut, LayoutDashboard, Menu, X, Bot, History, Settings } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   DropdownMenu,
@@ -99,6 +99,12 @@ export function Navbar() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link href="/admin/settings">
+                      <Settings className="ml-2 h-4 w-4" />
+                      الإعدادات
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem 
                     onClick={() => logout()} 
                     className="text-destructive focus:text-destructive cursor-pointer"

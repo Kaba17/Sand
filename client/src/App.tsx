@@ -15,6 +15,7 @@ import MyClaimsHistory from "@/pages/MyClaimsHistory";
 import AgentChat from "@/pages/AgentChat";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminClaimDetails from "@/pages/admin/AdminClaimDetails";
+import AdminSettings from "@/pages/admin/AdminSettings";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -56,6 +57,9 @@ function Router() {
           </Route>
           <Route path="/admin/claims/:id">
             <ProtectedRoute component={AdminClaimDetails} />
+          </Route>
+          <Route path="/admin/settings">
+            <ProtectedRoute component={AdminSettings} />
           </Route>
 
           {/* Fallback */}

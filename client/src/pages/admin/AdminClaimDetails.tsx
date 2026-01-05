@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowRight, Send, Save, Phone, Mail, FileText, Plane, CheckCircle, XCircle, Clock, AlertTriangle, Upload, Bot, FileSearch, Edit, MessageSquareMore, Shield, ShieldAlert, ShieldX, Sparkles, ScanSearch, Eye } from "lucide-react";
+import { Loader2, ArrowRight, Send, Save, Phone, Mail, FileText, Plane, CheckCircle, XCircle, Clock, AlertTriangle, Upload, Bot, FileSearch, Edit, MessageSquareMore, Shield, ShieldAlert, ShieldX, Sparkles, ScanSearch, Eye, Calculator, SendHorizontal, DollarSign } from "lucide-react";
 import { useState, useCallback } from "react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -136,6 +136,19 @@ export default function AdminClaimDetails() {
     },
     onError: () => {
       toast({ title: "فشل في تنفيذ الطلب", variant: "destructive" });
+    },
+  });
+
+  const markSubmittedMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/claims/${id}/mark-submitted`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.claims.get.path, id] });
+      toast({ title: "تم تسجيل المطالبة كمرسلة لشركة الطيران" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث حالة الإرسال", variant: "destructive" });
     },
   });
 
@@ -581,6 +594,78 @@ export default function AdminClaimDetails() {
 
         {/* Actions Column */}
         <div className="space-y-6">
+          {/* Compensation Calculator - Only for flight claims */}
+          {claim.category === "flight" && (claim.estimatedSdrAmount || claim.estimatedSarAmount) && (
+            <Card className="border-amber-200 dark:border-amber-800">
+              <CardHeader className="bg-amber-50 dark:bg-amber-950/30 pb-3">
+                <CardTitle className="font-cairo text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                  <Calculator className="h-4 w-4" />
+                  التعويض المتوقع
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div className="bg-muted/40 p-3 rounded-lg">
+                    <label className="text-xs text-muted-foreground font-tajawal block mb-1">SDR</label>
+                    <p className="text-xl font-bold font-mono text-amber-600">{claim.estimatedSdrAmount || "-"}</p>
+                  </div>
+                  <div className="bg-muted/40 p-3 rounded-lg">
+                    <label className="text-xs text-muted-foreground font-tajawal block mb-1">ريال سعودي</label>
+                    <p className="text-xl font-bold font-mono text-green-600">{claim.estimatedSarAmount || "-"}</p>
+                  </div>
+                </div>
+                
+                {/* Eligibility Status */}
+                {claim.eligibilityStatus && (
+                  <div className="flex items-center justify-center gap-2 pt-2">
+                    {claim.eligibilityStatus === "likely_eligible" && (
+                      <div className="flex items-center gap-1 text-green-600 bg-green-50 dark:bg-green-950/30 px-3 py-1 rounded-full text-xs font-tajawal">
+                        <CheckCircle className="h-3 w-3" />
+                        مؤهل للتعويض
+                      </div>
+                    )}
+                    {claim.eligibilityStatus === "maybe_eligible" && (
+                      <div className="flex items-center gap-1 text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-3 py-1 rounded-full text-xs font-tajawal">
+                        <AlertTriangle className="h-3 w-3" />
+                        يحتاج مراجعة
+                      </div>
+                    )}
+                    {claim.eligibilityStatus === "not_eligible" && (
+                      <div className="flex items-center gap-1 text-red-600 bg-red-50 dark:bg-red-950/30 px-3 py-1 rounded-full text-xs font-tajawal">
+                        <XCircle className="h-3 w-3" />
+                        غير مؤهل
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Mark as Submitted Button */}
+                {!claim.submittedToAirlineAt ? (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full font-tajawal"
+                    onClick={() => markSubmittedMutation.mutate()}
+                    disabled={markSubmittedMutation.isPending}
+                    data-testid="button-mark-submitted"
+                  >
+                    {markSubmittedMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                    ) : (
+                      <SendHorizontal className="h-4 w-4 ml-2" />
+                    )}
+                    تسجيل كمرسلة لشركة الطيران
+                  </Button>
+                ) : (
+                  <div className="flex items-center justify-center gap-2 text-green-600 bg-green-50 dark:bg-green-950/30 px-3 py-2 rounded-lg text-sm font-tajawal">
+                    <CheckCircle className="h-4 w-4" />
+                    تم الإرسال: {format(new Date(claim.submittedToAirlineAt), "dd/MM/yyyy")}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="border-primary/20 shadow-md">
             <CardHeader className="bg-primary/5 pb-4"><CardTitle className="font-cairo text-primary text-lg">إجراءات سريعة</CardTitle></CardHeader>
             <CardContent className="pt-6 space-y-4">
