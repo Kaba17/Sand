@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Loader2, AlertCircle, Clock, CheckCircle2, XCircle, FileText, Building2, Calendar } from "lucide-react";
+import { Search, Loader2, AlertCircle, Clock, CheckCircle2, XCircle, FileText, Building2, Calendar, Banknote } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { motion } from "framer-motion";
@@ -130,7 +130,7 @@ export default function TrackClaim() {
                   <InfoItem 
                     icon={FileText} 
                     label="نوع المشكلة" 
-                    value={data.claim.issueType} 
+                    value={issueTypeLabels[data.claim.issueType || ""] || data.claim.issueType || ""} 
                   />
                   <InfoItem 
                     icon={Calendar} 
@@ -138,6 +138,28 @@ export default function TrackClaim() {
                     value={format(new Date(data.claim.createdAt || new Date()), "dd MMM yyyy", { locale: ar })} 
                   />
                 </div>
+
+                {/* Estimated Compensation */}
+                {data.claim.estimatedSarAmount && data.claim.estimatedSarAmount > 0 && (
+                  <div className="p-6 border-b bg-emerald-50 dark:bg-emerald-950/30">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center flex-shrink-0">
+                        <Banknote className="h-6 w-6 text-emerald-600 dark:text-emerald-300" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">التعويض المتوقع</p>
+                        <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                          {data.claim.estimatedSarAmount.toLocaleString("ar-SA")} ريال
+                        </p>
+                        {data.claim.estimatedSdrAmount && (
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                            ({data.claim.estimatedSdrAmount} وحدة سحب خاصة)
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Timeline */}
                 <div className="p-6">
@@ -198,7 +220,9 @@ function StatusBadge({ status }: { status: string }) {
     new: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-400", icon: Clock, label: "جديد" },
     need_info: { bg: "bg-yellow-100 dark:bg-yellow-900/30", text: "text-yellow-700 dark:text-yellow-400", icon: AlertCircle, label: "بحاجة لمعلومات" },
     in_review: { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-400", icon: FileText, label: "قيد المراجعة" },
-    submitted: { bg: "bg-indigo-100 dark:bg-indigo-900/30", text: "text-indigo-700 dark:text-indigo-400", icon: FileText, label: "تم الإرسال" },
+    processing: { bg: "bg-cyan-100 dark:bg-cyan-900/30", text: "text-cyan-700 dark:text-cyan-400", icon: Clock, label: "قيد المعالجة" },
+    submitted: { bg: "bg-indigo-100 dark:bg-indigo-900/30", text: "text-indigo-700 dark:text-indigo-400", icon: FileText, label: "مرسلة للشركة" },
+    waiting_response: { bg: "bg-orange-100 dark:bg-orange-900/30", text: "text-orange-700 dark:text-orange-400", icon: Clock, label: "بانتظار الرد" },
     resolved: { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-700 dark:text-green-400", icon: CheckCircle2, label: "تمت التسوية" },
     rejected: { bg: "bg-red-100 dark:bg-red-900/30", text: "text-red-700 dark:text-red-400", icon: XCircle, label: "مرفوضة" },
   };
@@ -212,3 +236,12 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
+const issueTypeLabels: Record<string, string> = {
+  delay: "تأخير الرحلة",
+  cancel: "إلغاء الرحلة",
+  denied_boarding: "رفض الصعود",
+  missed_connection: "فوات الاتصال",
+  lost_baggage: "فقدان الأمتعة",
+  damaged_baggage: "تلف الأمتعة",
+};

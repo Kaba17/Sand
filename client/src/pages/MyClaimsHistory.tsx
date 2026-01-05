@@ -65,9 +65,20 @@ export default function MyClaimsHistory() {
     new: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-400", icon: Clock, label: "جديد" },
     need_info: { bg: "bg-yellow-100 dark:bg-yellow-900/30", text: "text-yellow-700 dark:text-yellow-400", icon: AlertCircle, label: "بحاجة لمعلومات" },
     in_review: { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-400", icon: FileText, label: "قيد المراجعة" },
-    submitted: { bg: "bg-indigo-100 dark:bg-indigo-900/30", text: "text-indigo-700 dark:text-indigo-400", icon: FileText, label: "تم الإرسال" },
+    processing: { bg: "bg-cyan-100 dark:bg-cyan-900/30", text: "text-cyan-700 dark:text-cyan-400", icon: Clock, label: "قيد المعالجة" },
+    submitted: { bg: "bg-indigo-100 dark:bg-indigo-900/30", text: "text-indigo-700 dark:text-indigo-400", icon: FileText, label: "مرسلة للشركة" },
+    waiting_response: { bg: "bg-orange-100 dark:bg-orange-900/30", text: "text-orange-700 dark:text-orange-400", icon: Clock, label: "بانتظار الرد" },
     resolved: { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-700 dark:text-green-400", icon: CheckCircle2, label: "تمت التسوية" },
     rejected: { bg: "bg-red-100 dark:bg-red-900/30", text: "text-red-700 dark:text-red-400", icon: XCircle, label: "مرفوضة" },
+  };
+
+  const issueTypeLabels: Record<string, string> = {
+    delay: "تأخير الرحلة",
+    cancel: "إلغاء الرحلة",
+    denied_boarding: "رفض الصعود",
+    missed_connection: "فوات الاتصال",
+    lost_baggage: "فقدان الأمتعة",
+    damaged_baggage: "تلف الأمتعة",
   };
 
   return (
@@ -169,8 +180,10 @@ export default function MyClaimsHistory() {
                         <SelectItem value="all">كل الحالات</SelectItem>
                         <SelectItem value="new">جديد</SelectItem>
                         <SelectItem value="in_review">قيد المراجعة</SelectItem>
+                        <SelectItem value="processing">قيد المعالجة</SelectItem>
                         <SelectItem value="need_info">بحاجة لمعلومات</SelectItem>
-                        <SelectItem value="submitted">تم الإرسال</SelectItem>
+                        <SelectItem value="submitted">مرسلة للشركة</SelectItem>
+                        <SelectItem value="waiting_response">بانتظار الرد</SelectItem>
                         <SelectItem value="resolved">تمت التسوية</SelectItem>
                         <SelectItem value="rejected">مرفوضة</SelectItem>
                       </SelectContent>
@@ -282,7 +295,7 @@ export default function MyClaimsHistory() {
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                                 <div className="flex items-center gap-2 text-muted-foreground">
                                   <FileText className="h-4 w-4" />
-                                  <span>{claim.issueType}</span>
+                                  <span>{issueTypeLabels[claim.issueType || ""] || claim.issueType}</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-muted-foreground">
                                   <Calendar className="h-4 w-4" />
