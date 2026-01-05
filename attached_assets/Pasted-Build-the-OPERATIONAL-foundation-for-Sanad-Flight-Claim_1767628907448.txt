@@ -1,0 +1,132 @@
+Build the OPERATIONAL foundation for Sanad (Flight Claims ONLY).
+Stop all AI/OCR/features until this is complete.
+
+GOAL:
+A real end-to-end working platform:
+- User submits a flight claim
+- Data is saved in DB
+- Admin logs in
+- Admin sees claims list
+- Admin opens claim details
+- Admin updates status and adds notes
+- Timeline updates correctly
+
+STACK:
+Use the existing project structure (client/server). Use the existing DB approach in the repo (Drizzle/SQLite or current DB config).
+Do NOT create a new separate project.
+
+========================
+1) DATABASE (MINIMUM TABLES)
+========================
+Create/ensure these tables exist:
+
+admins (or users):
+- id
+- email (unique)
+- password_hash
+- created_at
+
+claims:
+- id (uuid)
+- tracking_code (short unique string)
+- created_at
+- status (enum: new, reviewing, submitted, waiting_response, closed)
+- airline
+- flight_number
+- flight_date
+- from_airport
+- to_airport
+- disruption_type (delay|cancel|denied|missed|baggage)
+- delay_minutes (nullable)
+- reason_text (nullable)
+- user_name
+- user_phone
+- user_email (nullable)
+
+timeline_events:
+- id
+- claim_id (fk)
+- event_type (created|status_change|note|submitted)
+- message
+- created_at
+- created_by (admin|system)
+
+admin_notes (optional, can be timeline_events with type=note)
+
+========================
+2) BACKEND API (EXPRESS/Fastify)
+========================
+PUBLIC:
+POST /api/claims
+- Validate required fields
+- Generate tracking_code
+- Insert claim
+- Insert timeline event: "Claim created"
+- Return { claimId, trackingCode }
+
+GET /api/claims/track?trackingCode=...&phone=...
+- Return claim summary + status + timeline
+
+ADMIN AUTH:
+POST /api/admin/login
+- Email + password
+- Return session/JWT cookie/token
+- Add middleware to protect admin routes
+
+ADMIN:
+GET /api/admin/claims
+- List claims (pagination optional)
+GET /api/admin/claims/:id
+- Claim details + timeline
+PATCH /api/admin/claims/:id/status
+- Update status
+- Add timeline event: "Status changed to X"
+POST /api/admin/claims/:id/note
+- Add timeline event type=note
+POST /api/admin/claims/:id/submit
+- Set status=submitted
+- Add timeline event: "Marked as submitted" + store channel/date if you have fields
+
+========================
+3) CLIENT UI (REAL ADMIN DASHBOARD)
+========================
+Create/ensure pages:
+
+/admin/login
+- Login form
+- Stores auth token/session
+
+/admin
+- Claims table:
+  Claim ID | Airline | Flight Date | Disruption Type | Status | Created
+
+/admin/claims/:id
+- Claim details (flight + passenger info)
+- Timeline list
+- Status dropdown + Save
+- Add internal note form
+
+PUBLIC UI:
+- Ensure the claim wizard submits to POST /api/claims
+- Success page shows tracking code
+- Track page calls GET /api/claims/track
+
+========================
+4) IMPORTANT RULES
+========================
+- Flight only (remove delivery logic)
+- No AI, no OCR, no flight status checks in this task
+- Must be runnable locally in Replit with npm run dev
+- If port conflict happens, use process.env.PORT
+
+========================
+5) DONE WHEN
+========================
+Manual test:
+1) Submit a claim from public flow
+2) See success with tracking code
+3) Login admin
+4) See the claim in admin list
+5) Open claim details
+6) Change status + add note
+7) Timeline shows all events
