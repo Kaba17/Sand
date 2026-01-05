@@ -294,6 +294,71 @@ export async function registerRoutes(
     }
   });
 
+  // Manual flight verification by admin
+  app.post("/api/claims/:id/verify-flight-manual", isAuthenticated, async (req, res) => {
+    try {
+      const claimId = parseInt(req.params.id);
+      const { flightStatus, delayMinutes } = req.body;
+
+      if (!flightStatus || !["delayed", "cancelled", "on_time"].includes(flightStatus)) {
+        return res.status(400).json({ message: "حالة الرحلة غير صالحة" });
+      }
+
+      const claim = await storage.getClaim(claimId);
+      if (!claim) {
+        return res.status(404).json({ message: "المطالبة غير موجودة" });
+      }
+
+      // Get or create flight verification record
+      let verification = await storage.getFlightVerification(claimId);
+      
+      if (!verification) {
+        // Create new verification with claim data
+        verification = await storage.createFlightVerification({
+          claimId,
+          flightNumber: claim.referenceNumber || "",
+          airline: claim.companyName || "",
+          departureAirport: claim.flightFrom || "",
+          arrivalAirport: claim.flightTo || "",
+          scheduledDeparture: claim.incidentDate || null,
+          verificationStatus: "verified",
+          flightStatus,
+          delayMinutes: flightStatus === "delayed" ? (delayMinutes || 0) : null,
+          verificationSource: "manual_admin",
+        });
+      } else {
+        // Update existing verification
+        verification = await storage.updateFlightVerification(claimId, {
+          verificationStatus: "verified",
+          flightStatus,
+          delayMinutes: flightStatus === "delayed" ? (delayMinutes || 0) : null,
+          verificationSource: "manual_admin",
+        });
+      }
+
+      // Add timeline event
+      let statusMessage = "";
+      if (flightStatus === "delayed" && delayMinutes) {
+        statusMessage = `تم التحقق يدوياً: الرحلة ${claim.referenceNumber} تأخرت ${delayMinutes} دقيقة`;
+      } else if (flightStatus === "cancelled") {
+        statusMessage = `تم التحقق يدوياً: الرحلة ${claim.referenceNumber} ملغاة`;
+      } else if (flightStatus === "on_time") {
+        statusMessage = `تم التحقق يدوياً: الرحلة ${claim.referenceNumber} في موعدها - غير مؤهل للتعويض`;
+      }
+
+      await storage.createTimelineEvent({
+        claimId,
+        eventType: "note",
+        message: statusMessage,
+      });
+
+      res.json({ verification, message: "تم التحقق اليدوي بنجاح" });
+    } catch (error) {
+      console.error("Manual flight verification error:", error);
+      res.status(500).json({ message: "فشل في التحقق اليدوي" });
+    }
+  });
+
   // === AI DOCUMENT VERIFICATION ===
   // Verify any document attached to a claim using AI vision
   app.post("/api/claims/:id/verify-document/:attachmentId", isAuthenticated, async (req, res) => {

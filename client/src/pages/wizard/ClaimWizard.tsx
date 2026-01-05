@@ -20,7 +20,33 @@ import { Link } from "wouter";
 
 const SDR_TO_SAR = 5.1; // Default rate, can be fetched from settings
 
+// Saudi phone pattern: starts with 05, 10 digits total
+const saudiPhonePattern = /^05\d{8}$/;
+// Flight number pattern: 2 alphanumeric chars (IATA code) + optional letter + 3-4 digits
+// Examples: SV123, EK1234, F3123, 5F1234
+// Also accepts 6-character booking reference numbers (like ABC123, KXYZ12)
+const flightNumberPattern = /^([A-Z0-9]{2}[A-Z]?\d{3,4}|[A-Z0-9]{6})$/i;
+
 const wizardSchema = insertClaimSchema.extend({
+  customerPhone: z.string()
+    .min(10, "رقم الجوال يجب أن يكون 10 أرقام")
+    .max(10, "رقم الجوال يجب أن يكون 10 أرقام")
+    .regex(saudiPhonePattern, "رقم الجوال يجب أن يبدأ بـ 05 ويكون 10 أرقام"),
+  referenceNumber: z.string()
+    .min(1, "رقم الرحلة أو الحجز مطلوب")
+    .regex(flightNumberPattern, "أدخل رقم رحلة صحيح (مثال: SV123) أو رقم حجز (6 أحرف)"),
+  incidentDate: z.string()
+    .min(1, "تاريخ الرحلة مطلوب")
+    .refine((date) => {
+      const selectedDate = new Date(date);
+      const today = new Date();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(today.getDate() - 30);
+      return selectedDate <= today && selectedDate >= thirtyDaysAgo;
+    }, "التاريخ يجب أن يكون خلال آخر 30 يوم"),
+  companyName: z.string().min(2, "اسم شركة الطيران مطلوب"),
+  customerName: z.string().min(3, "الاسم الكامل مطلوب (3 أحرف على الأقل)"),
+  description: z.string().min(10, "يرجى وصف المشكلة بالتفصيل (10 أحرف على الأقل)"),
   termsAccepted: z.literal(true, {
     errorMap: () => ({ message: "يجب الموافقة على الشروط والأحكام" }),
   }),
@@ -138,14 +164,19 @@ export default function ClaimWizard() {
   }, [issueType, delayHours, step, setValue]);
 
   const onSubmit = (data: WizardData) => {
+    // Convert incidentDate string to Date object for the API
     const submitData = {
       ...data,
+      incidentDate: new Date(data.incidentDate as unknown as string),
       delayHours: delayHours,
     };
     createClaim.mutate(submitData as any, {
       onSuccess: (response) => {
         setClaimId(response.claimId);
         setStep(5);
+      },
+      onError: (error) => {
+        console.error("Claim submission error:", error);
       },
     });
   };
@@ -289,7 +320,7 @@ export default function ClaimWizard() {
                     <Input 
                       {...register("companyName")} 
                       placeholder="مثال: الخطوط السعودية" 
-                      className="h-12 rounded-xl"
+                      className={`h-12 rounded-xl ${errors.companyName ? 'border-destructive' : ''}`}
                       data-testid="input-airline"
                     />
                     {errors.companyName && <span className="text-destructive text-xs">{errors.companyName.message}</span>}
@@ -301,19 +332,22 @@ export default function ClaimWizard() {
                       <Input 
                         {...register("referenceNumber")} 
                         placeholder="SV123" 
-                        className="h-12 rounded-xl" 
+                        className={`h-12 rounded-xl ${errors.referenceNumber ? 'border-destructive' : ''}`}
                         dir="ltr"
                         data-testid="input-flight-number"
                       />
+                      {errors.referenceNumber && <span className="text-destructive text-xs">{errors.referenceNumber.message}</span>}
                     </div>
                     <div className="space-y-2">
                       <Label>تاريخ الرحلة *</Label>
                       <Input 
                         type="date" 
                         {...register("incidentDate")} 
-                        className="h-12 rounded-xl"
+                        className={`h-12 rounded-xl ${errors.incidentDate ? 'border-destructive' : ''}`}
                         data-testid="input-flight-date"
+                        max={new Date().toISOString().split('T')[0]}
                       />
+                      {errors.incidentDate && <span className="text-destructive text-xs">{errors.incidentDate.message}</span>}
                     </div>
                   </div>
 
@@ -547,7 +581,8 @@ export default function ClaimWizard() {
                     <Label>الاسم الكامل *</Label>
                     <Input 
                       {...register("customerName")} 
-                      className="h-12 rounded-xl"
+                      className={`h-12 rounded-xl ${errors.customerName ? 'border-destructive' : ''}`}
+                      placeholder="الاسم الثلاثي"
                       data-testid="input-customer-name"
                     />
                     {errors.customerName && <span className="text-destructive text-xs">{errors.customerName.message}</span>}
@@ -560,8 +595,9 @@ export default function ClaimWizard() {
                         {...register("customerPhone")} 
                         type="tel" 
                         placeholder="05xxxxxxxx" 
-                        className="h-12 rounded-xl" 
+                        className={`h-12 rounded-xl ${errors.customerPhone ? 'border-destructive' : ''}`}
                         dir="ltr"
+                        maxLength={10}
                         data-testid="input-customer-phone"
                       />
                       {errors.customerPhone && <span className="text-destructive text-xs">{errors.customerPhone.message}</span>}
@@ -583,9 +619,10 @@ export default function ClaimWizard() {
                     <Textarea 
                       {...register("description")} 
                       placeholder="اشرح ما حدث بالتفصيل..." 
-                      className="min-h-[100px] rounded-xl resize-none"
+                      className={`min-h-[100px] rounded-xl resize-none ${errors.description ? 'border-destructive' : ''}`}
                       data-testid="input-description"
                     />
+                    {errors.description && <span className="text-destructive text-xs">{errors.description.message}</span>}
                   </div>
 
                   <div className="space-y-2">

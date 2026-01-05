@@ -139,6 +139,27 @@ export default function AdminClaimDetails() {
     },
   });
 
+  const [manualFlightStatus, setManualFlightStatus] = useState<string>("");
+  const [manualDelayMinutes, setManualDelayMinutes] = useState<string>("");
+
+  const manualVerifyMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/claims/${id}/verify-flight-manual`, {
+        flightStatus: manualFlightStatus,
+        delayMinutes: manualFlightStatus === "delayed" ? parseInt(manualDelayMinutes) || 0 : null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.claims.get.path, id] });
+      toast({ title: "تم التحقق اليدوي من حالة الرحلة" });
+      setManualFlightStatus("");
+      setManualDelayMinutes("");
+    },
+    onError: () => {
+      toast({ title: "فشل في التحقق اليدوي", variant: "destructive" });
+    },
+  });
+
   const markSubmittedMutation = useMutation({
     mutationFn: async () => {
       return await apiRequest("POST", `/api/claims/${id}/mark-submitted`);
@@ -520,34 +541,82 @@ export default function AdminClaimDetails() {
                     )}
                   </div>
                 ) : (
-                  <div className="text-center py-6 space-y-4">
-                    <div className="text-muted-foreground font-tajawal text-sm">
-                      لم يتم رفع بطاقة صعود بعد
+                  <div className="space-y-6">
+                    <div className="text-center py-4 space-y-4">
+                      <div className="text-muted-foreground font-tajawal text-sm">
+                        لم يتم رفع بطاقة صعود بعد
+                      </div>
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleBoardingPassUpload}
+                          disabled={uploadBoardingPassMutation.isPending}
+                        />
+                        <Button 
+                          variant="outline" 
+                          className="font-tajawal"
+                          disabled={uploadBoardingPassMutation.isPending}
+                          asChild
+                        >
+                          <span>
+                            {uploadBoardingPassMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                            ) : (
+                              <Upload className="h-4 w-4 ml-2" />
+                            )}
+                            رفع بطاقة الصعود
+                          </span>
+                        </Button>
+                      </label>
                     </div>
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleBoardingPassUpload}
-                        disabled={uploadBoardingPassMutation.isPending}
-                      />
+
+                    {/* Manual Verification Section */}
+                    <div className="border-t pt-4 space-y-3">
+                      <label className="text-sm font-medium font-tajawal flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-blue-500" />
+                        التحقق اليدوي من حالة الرحلة
+                      </label>
+                      <Select value={manualFlightStatus} onValueChange={setManualFlightStatus}>
+                        <SelectTrigger className="font-tajawal" data-testid="select-manual-flight-status">
+                          <SelectValue placeholder="اختر حالة الرحلة..." />
+                        </SelectTrigger>
+                        <SelectContent className="font-tajawal">
+                          <SelectItem value="delayed">تأخير</SelectItem>
+                          <SelectItem value="cancelled">ملغاة</SelectItem>
+                          <SelectItem value="on_time">في الموعد</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {manualFlightStatus === "delayed" && (
+                        <div className="space-y-2">
+                          <label className="text-xs text-muted-foreground font-tajawal">مدة التأخير (بالدقائق)</label>
+                          <Input
+                            type="number"
+                            placeholder="مثال: 180"
+                            value={manualDelayMinutes}
+                            onChange={(e) => setManualDelayMinutes(e.target.value)}
+                            className="font-mono"
+                            data-testid="input-manual-delay-minutes"
+                          />
+                        </div>
+                      )}
+
                       <Button 
-                        variant="outline" 
-                        className="font-tajawal"
-                        disabled={uploadBoardingPassMutation.isPending}
-                        asChild
+                        className="w-full font-tajawal"
+                        onClick={() => manualVerifyMutation.mutate()}
+                        disabled={!manualFlightStatus || manualVerifyMutation.isPending || (manualFlightStatus === "delayed" && !manualDelayMinutes)}
+                        data-testid="button-manual-verify"
                       >
-                        <span>
-                          {uploadBoardingPassMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                          ) : (
-                            <Upload className="h-4 w-4 ml-2" />
-                          )}
-                          رفع بطاقة الصعود
-                        </span>
+                        {manualVerifyMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 ml-2" />
+                        )}
+                        تأكيد حالة الرحلة يدوياً
                       </Button>
-                    </label>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -640,7 +709,7 @@ export default function AdminClaimDetails() {
                 )}
 
                 {/* Mark as Submitted Button */}
-                {!claim.submittedToAirlineAt ? (
+                {!claim.submittedToAirline ? (
                   <Button
                     variant="default"
                     size="sm"
@@ -659,7 +728,7 @@ export default function AdminClaimDetails() {
                 ) : (
                   <div className="flex items-center justify-center gap-2 text-green-600 bg-green-50 dark:bg-green-950/30 px-3 py-2 rounded-lg text-sm font-tajawal">
                     <CheckCircle className="h-4 w-4" />
-                    تم الإرسال: {format(new Date(claim.submittedToAirlineAt), "dd/MM/yyyy")}
+                    تم الإرسال لشركة الطيران
                   </div>
                 )}
               </CardContent>
