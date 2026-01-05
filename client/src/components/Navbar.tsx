@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, User, LogOut, LayoutDashboard, Menu, X } from "lucide-react";
+import { ShieldCheck, User, LogOut, LayoutDashboard, Menu, X, Bot } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   DropdownMenu,
@@ -33,6 +33,7 @@ export function Navbar() {
     { href: "/", label: "الرئيسية" },
     { href: "/new", label: "ابدأ مطالبة" },
     { href: "/track", label: "تتبع طلبي" },
+    { href: "/agent", label: "الوكيل الذكي", icon: Bot },
   ];
 
   return (
@@ -57,10 +58,11 @@ export function Navbar() {
             <Link 
               key={link.href}
               href={link.href} 
-              className={`relative text-sm font-medium transition-colors hover:text-primary py-2 ${
+              className={`relative flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary py-2 ${
                 location === link.href ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
+              {link.icon && <link.icon className="h-4 w-4" />}
               {link.label}
               {location === link.href && (
                 <span className="absolute -bottom-1 right-0 left-0 h-0.5 bg-primary rounded-full" />
@@ -139,11 +141,12 @@ export function Navbar() {
                 {navLinks.map((link) => (
                   <SheetClose key={link.href} asChild>
                     <Link href={link.href}>
-                      <div className={`flex items-center p-4 rounded-2xl transition-colors ${
+                      <div className={`flex items-center gap-3 p-4 rounded-2xl transition-colors ${
                         location === link.href 
                           ? 'bg-primary text-primary-foreground' 
                           : 'hover:bg-muted'
                       }`}>
+                        {link.icon && <link.icon className="h-5 w-5" />}
                         <span className="font-medium text-lg">{link.label}</span>
                       </div>
                     </Link>

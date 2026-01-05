@@ -220,12 +220,22 @@ export function registerAgentRoutes(app: Express): void {
 
   // Send message and get AI response (streaming)
   app.post("/api/agent/conversations/:id/messages", async (req: Request, res: Response) => {
+    // Validate OpenAI configuration upfront
+    if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY || !process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+      console.error("OpenAI integration not configured");
+      return res.status(500).json({ error: "خدمة الذكاء الاصطناعي غير متوفرة حالياً" });
+    }
+
     try {
       const conversationId = parseInt(req.params.id);
       const { content } = req.body;
 
+      if (!content || typeof content !== "string" || !content.trim()) {
+        return res.status(400).json({ error: "الرجاء إدخال رسالة" });
+      }
+
       // Save user message
-      await db.insert(messages).values({ conversationId, role: "user", content });
+      await db.insert(messages).values({ conversationId, role: "user", content: content.trim() });
 
       // Get conversation history for context
       const allMessages = await db.select().from(messages).where(eq(messages.conversationId, conversationId)).orderBy(messages.createdAt);
@@ -267,12 +277,12 @@ export function registerAgentRoutes(app: Express): void {
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("Agent message error:", error);
       if (res.headersSent) {
-        res.write(`data: ${JSON.stringify({ error: "Failed to send message" })}\n\n`);
+        res.write(`data: ${JSON.stringify({ error: "حدث خطأ أثناء المعالجة" })}\n\n`);
         res.end();
       } else {
-        res.status(500).json({ error: "Failed to send message" });
+        res.status(500).json({ error: "حدث خطأ أثناء إرسال الرسالة" });
       }
     }
   });

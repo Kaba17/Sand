@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import Home from "@/pages/Home";
 import ClaimWizard from "@/pages/wizard/ClaimWizard";
 import TrackClaim from "@/pages/TrackClaim";
+import AgentChat from "@/pages/AgentChat";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminClaimDetails from "@/pages/admin/AdminClaimDetails";
 import NotFound from "@/pages/not-found";
@@ -45,6 +46,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/new" component={ClaimWizard} />
           <Route path="/track" component={TrackClaim} />
+          <Route path="/agent" component={AgentChat} />
           
           {/* Admin Routes */}
           <Route path="/admin">
