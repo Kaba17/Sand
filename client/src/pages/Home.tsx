@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Plane, Package, ChevronLeft, Shield, Clock, Coins, FileText, Star, ArrowDown, CheckCircle } from "lucide-react";
+import { Plane, Package, ChevronLeft, Shield, Clock, Coins, FileText, Star, ArrowDown, CheckCircle, Timer } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 
@@ -140,47 +140,59 @@ export default function Home() {
           </motion.div>
 
           <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {[
-              {
-                icon: Plane,
-                title: "تعويضات الطيران",
-                desc: "تأخير الرحلات، إلغاء الحجوزات، فقدان الأمتعة، ورفض الصعود.",
-                color: "from-blue-500 to-cyan-400",
-                features: ["تعويض يصل لـ 600 يورو", "متابعة احترافية", "بدون رسوم مقدمة"]
-              },
-              {
-                icon: Package,
-                title: "تعويضات التوصيل",
-                desc: "تأخر الطلبات، تلف الشحنات، منتجات ناقصة، وأخطاء المتاجر.",
-                color: "from-purple-500 to-pink-400",
-                features: ["استرداد كامل المبلغ", "تعويض عن الأضرار", "حل سريع"]
-              }
-            ].map((service, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="group relative bg-card rounded-3xl p-8 border shadow-sm card-hover overflow-hidden"
-              >
-                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${service.color} flex items-center justify-center mb-6 shadow-lg`}>
-                  <service.icon className="h-8 w-8 text-white" />
-                </div>
-                
-                <h3 className="text-2xl font-bold mb-3">{service.title}</h3>
-                <p className="text-muted-foreground mb-6 leading-relaxed">{service.desc}</p>
-                
-                <ul className="space-y-2">
-                  {service.features.map((f, j) => (
-                    <li key={j} className="flex items-center gap-2 text-sm">
-                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-            ))}
+            {/* Flight Claims - Active */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="group relative bg-card rounded-3xl p-8 border shadow-sm card-hover overflow-hidden"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center mb-6 shadow-lg">
+                <Plane className="h-8 w-8 text-white" />
+              </div>
+              
+              <h3 className="text-2xl font-bold mb-3">تعويضات الطيران</h3>
+              <p className="text-muted-foreground mb-6 leading-relaxed">تأخير الرحلات، إلغاء الحجوزات، فقدان الأمتعة، ورفض الصعود.</p>
+              
+              <ul className="space-y-2">
+                {["تعويض يصل لـ 600 يورو", "متابعة احترافية", "بدون رسوم مقدمة"].map((f, j) => (
+                  <li key={j} className="flex items-center gap-2 text-sm">
+                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            {/* Delivery Claims - Coming Soon */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="relative bg-card rounded-3xl p-8 border shadow-sm overflow-hidden opacity-60"
+            >
+              <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-full text-sm font-bold">
+                <Timer className="h-4 w-4" />
+                قريباً
+              </div>
+
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-400 flex items-center justify-center mb-6 shadow-lg">
+                <Package className="h-8 w-8 text-white" />
+              </div>
+              
+              <h3 className="text-2xl font-bold mb-3 text-muted-foreground">تعويضات التوصيل</h3>
+              <p className="text-muted-foreground mb-6 leading-relaxed">تأخر الطلبات، تلف الشحنات، منتجات ناقصة، وأخطاء المتاجر.</p>
+              
+              <ul className="space-y-2">
+                {["استرداد كامل المبلغ", "تعويض عن الأضرار", "حل سريع"].map((f, j) => (
+                  <li key={j} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle className="w-4 h-4 text-muted-foreground/50 flex-shrink-0" />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
           </div>
         </div>
       </section>

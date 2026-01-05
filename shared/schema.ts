@@ -158,6 +158,11 @@ export type TimelineEvent = typeof timelineEvents.$inferSelect;
 export type Communication = typeof communications.$inferSelect;
 export type Settlement = typeof settlements.$inferSelect;
 
+// Insert types for sub-resources
+export type InsertTimelineEvent = z.infer<typeof insertTimelineEventSchema>;
+export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
+export type InsertSettlement = z.infer<typeof insertSettlementSchema>;
+
 // Request types
 export type CreateClaimRequest = InsertClaim;
 export type UpdateClaimRequest = Partial<InsertClaim> & { 

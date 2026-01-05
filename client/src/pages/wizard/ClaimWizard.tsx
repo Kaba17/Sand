@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { FileUpload } from "@/components/ui/FileUpload";
-import { CheckCircle2, Plane, Package, ChevronLeft, ChevronRight, Loader2, Sparkles, Copy, Check } from "lucide-react";
+import { CheckCircle2, Plane, Package, ChevronLeft, ChevronRight, Loader2, Sparkles, Copy, Check, Clock } from "lucide-react";
 import { Link } from "wouter";
 
 const wizardSchema = insertClaimSchema.extend({
@@ -43,7 +43,9 @@ export default function ClaimWizard() {
       customerPhone: "",
       customerEmail: "",
       description: "",
-      termsAccepted: false,
+      issueType: "",
+      companyName: "",
+      referenceNumber: "",
     },
     mode: "onChange",
   });
@@ -60,7 +62,11 @@ export default function ClaimWizard() {
     });
   };
 
-  const nextStep = () => setStep(s => Math.min(s + 1, 4));
+  const nextStep = () => {
+    // Block delivery claims - coming soon
+    if (category === "delivery") return;
+    setStep(s => Math.min(s + 1, 4));
+  };
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
   const copyToClipboard = () => {
@@ -193,43 +199,63 @@ export default function ClaimWizard() {
                   defaultValue={category}
                   className="grid grid-cols-1 sm:grid-cols-2 gap-4"
                 >
-                  {[
-                    { value: "flight", icon: Plane, title: "طيران", desc: "تأخير، إلغاء، أمتعة" },
-                    { value: "delivery", icon: Package, title: "توصيل", desc: "متاجر إلكترونية، تطبيقات" }
-                  ].map((opt) => (
-                    <Label 
-                      key={opt.value}
-                      className={`
-                        cursor-pointer border-2 rounded-3xl p-6 transition-all duration-300 
-                        hover:border-primary/50 hover:shadow-lg
-                        ${category === opt.value 
-                          ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' 
-                          : 'border-border bg-card'
+                  {/* Flight Option - Active */}
+                  <Label 
+                    className={`
+                      cursor-pointer border-2 rounded-3xl p-6 transition-all duration-300 
+                      hover:border-primary/50 hover:shadow-lg
+                      ${category === "flight" 
+                        ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' 
+                        : 'border-border bg-card'
+                      }
+                    `}
+                  >
+                    <RadioGroupItem value="flight" className="sr-only" />
+                    <div className="flex flex-col items-center text-center gap-4">
+                      <div className={`
+                        p-4 rounded-2xl transition-all duration-300
+                        ${category === "flight" 
+                          ? 'bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg' 
+                          : 'bg-muted text-muted-foreground'
                         }
-                      `}
-                    >
-                      <RadioGroupItem value={opt.value} className="sr-only" />
-                      <div className="flex flex-col items-center text-center gap-4">
-                        <div className={`
-                          p-4 rounded-2xl transition-all duration-300
-                          ${category === opt.value 
-                            ? 'bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg' 
-                            : 'bg-muted text-muted-foreground'
-                          }
-                        `}>
-                          <opt.icon className="h-8 w-8" />
-                        </div>
-                        <div>
-                          <span className="block text-lg font-bold">{opt.title}</span>
-                          <span className="text-sm text-muted-foreground">{opt.desc}</span>
-                        </div>
+                      `}>
+                        <Plane className="h-8 w-8" />
                       </div>
-                    </Label>
-                  ))}
+                      <div>
+                        <span className="block text-lg font-bold">طيران</span>
+                        <span className="text-sm text-muted-foreground">تأخير، إلغاء، أمتعة</span>
+                      </div>
+                    </div>
+                  </Label>
+
+                  {/* Delivery Option - Coming Soon */}
+                  <div 
+                    className="relative border-2 rounded-3xl p-6 border-border bg-muted/30 opacity-60 cursor-not-allowed"
+                  >
+                    <div className="absolute top-3 left-3 flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-3 py-1 rounded-full text-xs font-bold">
+                      <Clock className="h-3 w-3" />
+                      قريباً
+                    </div>
+                    <div className="flex flex-col items-center text-center gap-4">
+                      <div className="p-4 rounded-2xl bg-muted text-muted-foreground">
+                        <Package className="h-8 w-8" />
+                      </div>
+                      <div>
+                        <span className="block text-lg font-bold text-muted-foreground">توصيل</span>
+                        <span className="text-sm text-muted-foreground">متاجر إلكترونية، تطبيقات</span>
+                      </div>
+                    </div>
+                  </div>
                 </RadioGroup>
 
                 <div className="flex justify-end pt-4">
-                  <Button type="button" onClick={nextStep} size="lg" className="h-14 px-8 text-lg rounded-2xl shadow-lg btn-gradient">
+                  <Button 
+                    type="button" 
+                    onClick={nextStep} 
+                    size="lg" 
+                    className="h-14 px-8 text-lg rounded-2xl shadow-lg btn-gradient"
+                    disabled={category === "delivery"}
+                  >
                     التالي
                     <ChevronLeft className="mr-2 h-5 w-5" />
                   </Button>
