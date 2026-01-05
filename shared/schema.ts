@@ -79,6 +79,34 @@ export const settlements = pgTable("settlements", {
   closedAt: timestamp("closed_at").defaultNow(),
 });
 
+export const flightVerifications = pgTable("flight_verifications", {
+  id: serial("id").primaryKey(),
+  claimId: integer("claim_id").notNull().unique(),
+  
+  // Extracted from boarding pass
+  flightNumber: text("flight_number"),
+  airline: text("airline"),
+  departureAirport: text("departure_airport"),
+  arrivalAirport: text("arrival_airport"),
+  scheduledDeparture: timestamp("scheduled_departure"),
+  passengerName: text("passenger_name"),
+  
+  // Verification results from external API
+  verificationStatus: text("verification_status").notNull().default("pending"), // 'pending', 'verified', 'unverified', 'error'
+  actualDeparture: timestamp("actual_departure"),
+  delayMinutes: integer("delay_minutes"),
+  flightStatus: text("flight_status"), // 'on_time', 'delayed', 'cancelled', 'diverted'
+  verificationSource: text("verification_source"), // 'aerodatabox', 'manual'
+  verificationRawData: jsonb("verification_raw_data"),
+  
+  // OCR metadata
+  ocrConfidence: integer("ocr_confidence"), // 0-100
+  boardingPassPath: text("boarding_pass_path"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  verifiedAt: timestamp("verified_at"),
+});
+
 // === RELATIONS ===
 
 export const claimsRelations = relations(claims, ({ many, one }) => ({
@@ -88,6 +116,10 @@ export const claimsRelations = relations(claims, ({ many, one }) => ({
   settlement: one(settlements, {
     fields: [claims.id],
     references: [settlements.claimId],
+  }),
+  flightVerification: one(flightVerifications, {
+    fields: [claims.id],
+    references: [flightVerifications.claimId],
   }),
 }));
 
@@ -115,6 +147,13 @@ export const communicationsRelations = relations(communications, ({ one }) => ({
 export const settlementsRelations = relations(settlements, ({ one }) => ({
   claim: one(claims, {
     fields: [settlements.claimId],
+    references: [claims.id],
+  }),
+}));
+
+export const flightVerificationsRelations = relations(flightVerifications, ({ one }) => ({
+  claim: one(claims, {
+    fields: [flightVerifications.claimId],
     references: [claims.id],
   }),
 }));
@@ -149,6 +188,12 @@ export const insertSettlementSchema = createInsertSchema(settlements).omit({
   closedAt: true 
 });
 
+export const insertFlightVerificationSchema = createInsertSchema(flightVerifications).omit({ 
+  id: true, 
+  createdAt: true,
+  verifiedAt: true
+});
+
 // === EXPLICIT API CONTRACT TYPES ===
 
 export type Claim = typeof claims.$inferSelect;
@@ -157,11 +202,14 @@ export type Attachment = typeof attachments.$inferSelect;
 export type TimelineEvent = typeof timelineEvents.$inferSelect;
 export type Communication = typeof communications.$inferSelect;
 export type Settlement = typeof settlements.$inferSelect;
+export type FlightVerification = typeof flightVerifications.$inferSelect;
 
 // Insert types for sub-resources
+export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
 export type InsertTimelineEvent = z.infer<typeof insertTimelineEventSchema>;
 export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
 export type InsertSettlement = z.infer<typeof insertSettlementSchema>;
+export type InsertFlightVerification = z.infer<typeof insertFlightVerificationSchema>;
 
 // Request types
 export type CreateClaimRequest = InsertClaim;
@@ -177,6 +225,7 @@ export type ClaimResponse = Claim & {
   timelineEvents?: TimelineEvent[];
   communications?: Communication[];
   settlement?: Settlement | null;
+  flightVerification?: FlightVerification | null;
 };
 
 export type ClaimsListResponse = Claim[];

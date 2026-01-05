@@ -8,6 +8,8 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { registerAgentRoutes } from "./replit_integrations/agent";
+import { extractBoardingPassData } from "./services/boardingPassOCR";
+import { verifyFlightStatus } from "./services/flightVerification";
 
 // Upload configuration
 const upload = multer({ 
@@ -113,6 +115,150 @@ export async function registerRoutes(
     res.status(400).json({ message: "Claim ID required for upload" });
   });
 
+  // === BOARDING PASS VERIFICATION (Admin Only) ===
+
+  // Upload and analyze boarding pass
+  app.post("/api/claims/:id/boarding-pass", isAuthenticated, upload.single("file"), async (req, res) => {
+    try {
+      const claimId = parseInt(req.params.id);
+      
+      if (!req.file) {
+        return res.status(400).json({ message: "لم يتم رفع ملف" });
+      }
+
+      const claim = await storage.getClaim(claimId);
+      if (!claim) {
+        return res.status(404).json({ message: "المطالبة غير موجودة" });
+      }
+
+      // Only for flight claims
+      if (claim.category !== "flight") {
+        return res.status(400).json({ message: "هذه الميزة متاحة فقط لمطالبات الطيران" });
+      }
+
+      // Extract data from boarding pass using OpenAI Vision
+      const ocrData = await extractBoardingPassData(req.file.path);
+
+      // Create or update flight verification record
+      const existing = await storage.getFlightVerification(claimId);
+      
+      if (existing) {
+        const updated = await storage.updateFlightVerification(claimId, {
+          flightNumber: ocrData.flightNumber,
+          airline: ocrData.airline,
+          departureAirport: ocrData.departureAirport,
+          arrivalAirport: ocrData.arrivalAirport,
+          scheduledDeparture: ocrData.scheduledDeparture,
+          passengerName: ocrData.passengerName,
+          ocrConfidence: ocrData.confidence,
+          boardingPassPath: req.file.path,
+          verificationStatus: "pending",
+        });
+        res.json({ verification: updated, ocrData });
+      } else {
+        const verification = await storage.createFlightVerification({
+          claimId,
+          flightNumber: ocrData.flightNumber,
+          airline: ocrData.airline,
+          departureAirport: ocrData.departureAirport,
+          arrivalAirport: ocrData.arrivalAirport,
+          scheduledDeparture: ocrData.scheduledDeparture,
+          passengerName: ocrData.passengerName,
+          ocrConfidence: ocrData.confidence,
+          boardingPassPath: req.file.path,
+          verificationStatus: "pending",
+        });
+        res.json({ verification, ocrData });
+      }
+
+      // Also save as attachment
+      await storage.createAttachment({
+        claimId,
+        fileName: req.file.originalname,
+        filePath: req.file.path,
+        mimeType: req.file.mimetype,
+      });
+
+      // Add timeline event
+      await storage.createTimelineEvent({
+        claimId,
+        eventType: "info_request",
+        message: `تم رفع بطاقة الصعود وقراءة البيانات: رحلة ${ocrData.flightNumber || "غير محدد"}`,
+      });
+
+    } catch (error) {
+      console.error("Boarding pass upload error:", error);
+      res.status(500).json({ message: "فشل في معالجة بطاقة الصعود" });
+    }
+  });
+
+  // Verify flight status from external API
+  app.post("/api/claims/:id/verify-flight", isAuthenticated, async (req, res) => {
+    try {
+      const claimId = parseInt(req.params.id);
+      
+      const verification = await storage.getFlightVerification(claimId);
+      if (!verification) {
+        return res.status(404).json({ message: "يرجى رفع بطاقة الصعود أولاً" });
+      }
+
+      if (!verification.flightNumber || !verification.scheduledDeparture) {
+        return res.status(400).json({ message: "بيانات الرحلة غير مكتملة" });
+      }
+
+      // Call external API to verify flight status
+      const flightResult = await verifyFlightStatus(
+        verification.flightNumber,
+        new Date(verification.scheduledDeparture),
+        verification.departureAirport || undefined
+      );
+
+      // Update verification record
+      const updated = await storage.updateFlightVerification(claimId, {
+        verificationStatus: flightResult.flightStatus === "unknown" ? "error" : "verified",
+        flightStatus: flightResult.flightStatus,
+        actualDeparture: flightResult.actualDeparture,
+        delayMinutes: flightResult.delayMinutes,
+        verificationSource: flightResult.source,
+        verificationRawData: flightResult.rawData,
+      });
+
+      // Add timeline event
+      let statusMessage = "";
+      if (flightResult.flightStatus === "delayed" && flightResult.delayMinutes) {
+        statusMessage = `تم التحقق: الرحلة ${verification.flightNumber} تأخرت ${flightResult.delayMinutes} دقيقة`;
+      } else if (flightResult.flightStatus === "cancelled") {
+        statusMessage = `تم التحقق: الرحلة ${verification.flightNumber} ملغاة`;
+      } else if (flightResult.flightStatus === "on_time") {
+        statusMessage = `تم التحقق: الرحلة ${verification.flightNumber} في موعدها`;
+      } else {
+        statusMessage = `لم نتمكن من التحقق من حالة الرحلة ${verification.flightNumber}`;
+      }
+
+      await storage.createTimelineEvent({
+        claimId,
+        eventType: "note",
+        message: statusMessage,
+      });
+
+      res.json({ verification: updated, flightResult });
+    } catch (error) {
+      console.error("Flight verification error:", error);
+      res.status(500).json({ message: "فشل في التحقق من حالة الرحلة" });
+    }
+  });
+
+  // Get flight verification for a claim
+  app.get("/api/claims/:id/verification", isAuthenticated, async (req, res) => {
+    try {
+      const claimId = parseInt(req.params.id);
+      const verification = await storage.getFlightVerification(claimId);
+      res.json(verification || null);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في جلب بيانات التحقق" });
+    }
+  });
+
 
   // === ADMIN ROUTES (Protected) ===
 
@@ -135,11 +281,12 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Not Found" });
     }
 
-    const [attachments, timelineEvents, communications, settlement] = await Promise.all([
+    const [attachments, timelineEvents, communications, settlement, flightVerification] = await Promise.all([
       storage.getAttachments(id),
       storage.getTimelineEvents(id),
       storage.getCommunications(id),
-      storage.getSettlement(id)
+      storage.getSettlement(id),
+      storage.getFlightVerification(id)
     ]);
 
     res.json({
@@ -147,7 +294,8 @@ export async function registerRoutes(
       attachments,
       timelineEvents,
       communications,
-      settlement
+      settlement,
+      flightVerification
     });
   });
 

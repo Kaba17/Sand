@@ -5,10 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowRight, Send, Save, Phone, Mail, FileText } from "lucide-react";
-import { useState } from "react";
+import { Loader2, ArrowRight, Send, Save, Phone, Mail, FileText, Plane, CheckCircle, XCircle, Clock, AlertTriangle, Upload } from "lucide-react";
+import { useState, useCallback } from "react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { api } from "@shared/routes";
 
 export default function AdminClaimDetails() {
   const [match, params] = useRoute("/admin/claims/:id");
@@ -21,6 +25,49 @@ export default function AdminClaimDetails() {
   const [note, setNote] = useState("");
   const [commMessage, setCommMessage] = useState("");
   const [status, setStatus] = useState<string | undefined>(undefined);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const verifyFlightMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/claims/${id}/verify-flight`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.claims.get.path, id] });
+      toast({ title: "تم التحقق من حالة الرحلة" });
+    },
+    onError: () => {
+      toast({ title: "فشل التحقق", variant: "destructive" });
+    },
+  });
+
+  const uploadBoardingPassMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch(`/api/claims/${id}/boarding-pass`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Upload failed");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.claims.get.path, id] });
+      toast({ title: "تم رفع بطاقة الصعود بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل رفع الملف", variant: "destructive" });
+    },
+  });
+
+  const handleBoardingPassUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadBoardingPassMutation.mutate(file);
+    }
+  }, [uploadBoardingPassMutation]);
 
   if (isLoading || !claim) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
@@ -124,6 +171,140 @@ export default function AdminClaimDetails() {
               )}
             </CardContent>
           </Card>
+
+          {/* Flight Verification Card - Only for flight claims */}
+          {claim.category === "flight" && (
+            <Card className="border-blue-200 dark:border-blue-800">
+              <CardHeader className="bg-blue-50 dark:bg-blue-950/30">
+                <CardTitle className="font-cairo flex items-center gap-2">
+                  <Plane className="h-5 w-5 text-blue-500" />
+                  التحقق من الرحلة
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {claim.flightVerification ? (
+                  <div className="space-y-4">
+                    {/* Flight Info */}
+                    <div className="grid grid-cols-2 gap-4 text-sm font-tajawal">
+                      <div>
+                        <label className="text-xs text-muted-foreground">رقم الرحلة</label>
+                        <p className="font-mono font-medium">{claim.flightVerification.flightNumber || "-"}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">شركة الطيران</label>
+                        <p className="font-medium">{claim.flightVerification.airline || "-"}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">من</label>
+                        <p className="font-mono">{claim.flightVerification.departureAirport || "-"}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">إلى</label>
+                        <p className="font-mono">{claim.flightVerification.arrivalAirport || "-"}</p>
+                      </div>
+                    </div>
+
+                    {/* Verification Status */}
+                    <div className="border-t pt-4">
+                      <label className="text-xs text-muted-foreground block mb-2">حالة التحقق</label>
+                      <div className="flex items-center gap-2">
+                        {claim.flightVerification.verificationStatus === "verified" && (
+                          <>
+                            {claim.flightVerification.flightStatus === "delayed" && (
+                              <div className="flex items-center gap-2 text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 rounded-lg">
+                                <AlertTriangle className="h-5 w-5" />
+                                <span className="font-tajawal">تأخير {claim.flightVerification.delayMinutes} دقيقة</span>
+                              </div>
+                            )}
+                            {claim.flightVerification.flightStatus === "cancelled" && (
+                              <div className="flex items-center gap-2 text-red-600 bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded-lg">
+                                <XCircle className="h-5 w-5" />
+                                <span className="font-tajawal">الرحلة ملغاة</span>
+                              </div>
+                            )}
+                            {claim.flightVerification.flightStatus === "on_time" && (
+                              <div className="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-950/30 px-3 py-2 rounded-lg">
+                                <CheckCircle className="h-5 w-5" />
+                                <span className="font-tajawal">في الموعد</span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {claim.flightVerification.verificationStatus === "pending" && (
+                          <div className="flex items-center gap-2 text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 rounded-lg">
+                            <Clock className="h-5 w-5" />
+                            <span className="font-tajawal">بانتظار التحقق</span>
+                          </div>
+                        )}
+                        {claim.flightVerification.verificationStatus === "error" && (
+                          <div className="flex items-center gap-2 text-gray-600 bg-gray-50 dark:bg-gray-950/30 px-3 py-2 rounded-lg">
+                            <AlertTriangle className="h-5 w-5" />
+                            <span className="font-tajawal">لم نتمكن من التحقق</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Verify Button */}
+                    {claim.flightVerification.verificationStatus === "pending" && (
+                      <Button 
+                        onClick={() => verifyFlightMutation.mutate()}
+                        disabled={verifyFlightMutation.isPending}
+                        className="w-full font-tajawal"
+                      >
+                        {verifyFlightMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 ml-2" />
+                        )}
+                        التحقق من حالة الرحلة
+                      </Button>
+                    )}
+
+                    {/* OCR Confidence */}
+                    {claim.flightVerification.ocrConfidence !== null && (
+                      <div className="text-xs text-muted-foreground font-tajawal">
+                        دقة القراءة: {claim.flightVerification.ocrConfidence}%
+                        {claim.flightVerification.verificationSource && (
+                          <span className="mr-2">| المصدر: {claim.flightVerification.verificationSource}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 space-y-4">
+                    <div className="text-muted-foreground font-tajawal text-sm">
+                      لم يتم رفع بطاقة صعود بعد
+                    </div>
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleBoardingPassUpload}
+                        disabled={uploadBoardingPassMutation.isPending}
+                      />
+                      <Button 
+                        variant="outline" 
+                        className="font-tajawal"
+                        disabled={uploadBoardingPassMutation.isPending}
+                        asChild
+                      >
+                        <span>
+                          {uploadBoardingPassMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                          ) : (
+                            <Upload className="h-4 w-4 ml-2" />
+                          )}
+                          رفع بطاقة الصعود
+                        </span>
+                      </Button>
+                    </label>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader><CardTitle className="font-cairo">سجل النشاطات (Timeline)</CardTitle></CardHeader>

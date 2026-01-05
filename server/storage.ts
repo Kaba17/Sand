@@ -5,6 +5,7 @@ import {
   timelineEvents,
   communications,
   settlements,
+  flightVerifications,
   type Claim,
   type InsertClaim,
   type UpdateClaimRequest,
@@ -12,10 +13,12 @@ import {
   type TimelineEvent,
   type Communication,
   type Settlement,
+  type FlightVerification,
   type InsertAttachment,
   type InsertTimelineEvent,
   type InsertCommunication,
-  type InsertSettlement
+  type InsertSettlement,
+  type InsertFlightVerification
 } from "@shared/schema";
 import { eq, desc, and, ilike, or } from "drizzle-orm";
 import { authStorage, type IAuthStorage } from "./replit_integrations/auth/storage";
@@ -43,6 +46,11 @@ export interface IStorage extends IAuthStorage {
   // Settlements
   createSettlement(settlement: InsertSettlement): Promise<Settlement>;
   getSettlement(claimId: number): Promise<Settlement | undefined>;
+  
+  // Flight Verifications
+  createFlightVerification(verification: InsertFlightVerification): Promise<FlightVerification>;
+  getFlightVerification(claimId: number): Promise<FlightVerification | undefined>;
+  updateFlightVerification(claimId: number, updates: Partial<InsertFlightVerification>): Promise<FlightVerification>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -170,6 +178,30 @@ export class DatabaseStorage implements IStorage {
   async getSettlement(claimId: number): Promise<Settlement | undefined> {
     const [settlement] = await db.select().from(settlements).where(eq(settlements.claimId, claimId));
     return settlement;
+  }
+
+  // Flight Verifications
+  async createFlightVerification(verification: InsertFlightVerification): Promise<FlightVerification> {
+    const [newVerification] = await db.insert(flightVerifications).values(verification).returning();
+    return newVerification;
+  }
+
+  async getFlightVerification(claimId: number): Promise<FlightVerification | undefined> {
+    const [verification] = await db.select().from(flightVerifications).where(eq(flightVerifications.claimId, claimId));
+    return verification;
+  }
+
+  async updateFlightVerification(claimId: number, updates: Partial<InsertFlightVerification>): Promise<FlightVerification> {
+    const [updated] = await db.update(flightVerifications)
+      .set({
+        ...updates,
+        verifiedAt: updates.verificationStatus === 'verified' || updates.verificationStatus === 'unverified' 
+          ? new Date() 
+          : undefined
+      })
+      .where(eq(flightVerifications.claimId, claimId))
+      .returning();
+    return updated;
   }
 }
 

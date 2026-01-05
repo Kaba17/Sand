@@ -8,7 +8,8 @@ import {
   claims,
   timelineEvents,
   communications,
-  settlements
+  settlements,
+  flightVerifications
 } from './schema';
 
 // ============================================
@@ -56,7 +57,8 @@ export const api = {
           attachments: any[],
           timelineEvents: any[],
           communications: any[],
-          settlement: any
+          settlement: any,
+          flightVerification: typeof flightVerifications.$inferSelect | null
         }>(),
         404: errorSchemas.notFound,
         401: errorSchemas.unauthorized,
