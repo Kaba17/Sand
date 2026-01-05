@@ -3,6 +3,7 @@ import type { Server } from "http";
 import multer from "multer";
 import path from "path";
 import express from "express";
+import crypto from "crypto";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
@@ -10,6 +11,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { registerAgentRoutes } from "./replit_integrations/agent";
 import { extractBoardingPassData } from "./services/boardingPassOCR";
 import { verifyFlightStatus } from "./services/flightVerification";
+import OpenAI from "openai";
 
 // Upload configuration
 const upload = multer({ 
@@ -290,6 +292,174 @@ export async function registerRoutes(
     }
   });
 
+  // === AI FLIGHT AGENT ENDPOINT ===
+  // Claim-centric AI analysis with 3 modes: analyze, draft, followup
+  const flightAgentSchema = z.object({
+    claimId: z.number(),
+    mode: z.enum(["analyze", "draft", "followup"]),
+    claimData: z.object({
+      airline: z.string(),
+      flightNumber: z.string(),
+      date: z.string(),
+      from: z.string(),
+      to: z.string(),
+      disruptionType: z.string(),
+      delayMinutes: z.number().optional(),
+      reasonText: z.string().optional(),
+    }),
+    evidenceText: z.string(),
+    airlineResponseText: z.string().optional(),
+  });
+
+  app.post("/api/ai/flight-agent", isAuthenticated, async (req, res) => {
+    try {
+      const input = flightAgentSchema.parse(req.body);
+      const { claimId, mode, claimData, evidenceText, airlineResponseText } = input;
+
+      // Verify claim exists
+      const claim = await storage.getClaim(claimId);
+      if (!claim) {
+        return res.status(404).json({ message: "المطالبة غير موجودة" });
+      }
+
+      // Generate input hash for caching
+      const inputData = JSON.stringify({ claimData, evidenceText, airlineResponseText, mode });
+      const inputHash = crypto.createHash("md5").update(inputData).digest("hex");
+
+      // Check cache - if same input+mode, return cached result
+      const existingOutput = await storage.getAiOutput(claimId);
+      if (existingOutput && existingOutput.lastInputHash === inputHash && existingOutput.lastMode === mode) {
+        return res.json({
+          ai_summary: existingOutput.summary,
+          ai_case_strength: existingOutput.caseStrength,
+          ai_eligibility_reasoning: existingOutput.eligibilityReasoning,
+          ai_claim_draft: existingOutput.claimDraft,
+          ai_next_action: existingOutput.nextAction,
+          cached: true,
+        });
+      }
+
+      // OpenAI client setup
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      // Build the prompt based on mode
+      let systemPrompt = `أنت "وكيل سند الذكي" - وكيل مطالبات طيران محترف يتصرف نيابة عن الركاب.
+
+معلومات القضية:
+- شركة الطيران: ${claimData.airline}
+- رقم الرحلة: ${claimData.flightNumber}
+- التاريخ: ${claimData.date}
+- من: ${claimData.from}
+- إلى: ${claimData.to}
+- نوع المشكلة: ${claimData.disruptionType}
+${claimData.delayMinutes ? `- مدة التأخير: ${claimData.delayMinutes} دقيقة` : ""}
+${claimData.reasonText ? `- سبب المشكلة: ${claimData.reasonText}` : ""}
+
+الأدلة المتاحة:
+${evidenceText || "لا توجد أدلة نصية"}
+`;
+
+      let userPrompt = "";
+
+      if (mode === "analyze") {
+        userPrompt = `قم بتحليل هذه القضية وأعطني:
+1. ملخص القضية (ai_summary): ملخص موجز للحالة
+2. قوة القضية (ai_case_strength): اختر واحدة فقط: strong أو medium أو weak
+3. تحليل الأهلية (ai_eligibility_reasoning): شرح سبب استحقاق أو عدم استحقاق التعويض
+4. الخطوة التالية (ai_next_action): ما هي الخطوة المقترحة
+
+أجب بصيغة JSON فقط مع هذه الحقول.`;
+      } else if (mode === "draft") {
+        userPrompt = `بناءً على تحليل القضية، قم بصياغة رسالة مطالبة رسمية للشركة تتضمن:
+- تفاصيل الرحلة
+- وصف المشكلة
+- طلب التعويض
+- موعد نهائي للرد
+
+أعطني:
+1. ai_claim_draft: نص المطالبة كاملاً
+2. ai_next_action: الخطوة التالية بعد إرسال المطالبة
+
+أجب بصيغة JSON فقط.`;
+      } else if (mode === "followup") {
+        systemPrompt += `\nرد شركة الطيران:
+${airlineResponseText || "لا يوجد رد"}`;
+        userPrompt = `بناءً على رد الشركة، قم بـ:
+1. تحليل الرد
+2. اقتراح: قبول / رفض / تصعيد
+3. صياغة رد مناسب إذا لزم الأمر
+
+أعطني:
+1. ai_summary: ملخص الموقف الحالي
+2. ai_claim_draft: نص الرد/المتابعة
+3. ai_next_action: التوصية (accept/counter/escalate)
+
+أجب بصيغة JSON فقط.`;
+      }
+
+      // Call OpenAI
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: 2000,
+        response_format: { type: "json_object" },
+      });
+
+      const responseText = completion.choices[0]?.message?.content || "{}";
+      let aiResult: any;
+      try {
+        aiResult = JSON.parse(responseText);
+      } catch {
+        aiResult = { ai_summary: responseText };
+      }
+
+      // Normalize field names
+      const normalizedResult = {
+        ai_summary: aiResult.ai_summary || aiResult.summary || null,
+        ai_case_strength: aiResult.ai_case_strength || aiResult.case_strength || aiResult.caseStrength || null,
+        ai_eligibility_reasoning: aiResult.ai_eligibility_reasoning || aiResult.eligibility_reasoning || aiResult.eligibilityReasoning || null,
+        ai_claim_draft: aiResult.ai_claim_draft || aiResult.claim_draft || aiResult.claimDraft || null,
+        ai_next_action: aiResult.ai_next_action || aiResult.next_action || aiResult.nextAction || null,
+      };
+
+      // Save to database
+      await storage.upsertAiOutput(claimId, {
+        summary: normalizedResult.ai_summary,
+        caseStrength: normalizedResult.ai_case_strength,
+        eligibilityReasoning: normalizedResult.ai_eligibility_reasoning,
+        claimDraft: normalizedResult.ai_claim_draft,
+        nextAction: normalizedResult.ai_next_action,
+        lastInputHash: inputHash,
+        lastMode: mode,
+      });
+
+      // Add timeline event
+      const modeLabels: Record<string, string> = {
+        analyze: "تحليل الذكاء الاصطناعي",
+        draft: "صياغة المطالبة",
+        followup: "متابعة/تصعيد",
+      };
+      await storage.createTimelineEvent({
+        claimId,
+        eventType: "ai_action",
+        message: `تم إنشاء ${modeLabels[mode]} بواسطة وكيل سند الذكي`,
+      });
+
+      res.json({ ...normalizedResult, cached: false });
+    } catch (error) {
+      console.error("Flight agent error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "بيانات غير صالحة", errors: error.errors });
+      }
+      res.status(500).json({ message: "خطأ في معالجة الطلب" });
+    }
+  });
 
   // === ADMIN ROUTES (Protected) ===
 
@@ -312,12 +482,13 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Not Found" });
     }
 
-    const [attachments, timelineEvents, communications, settlement, flightVerification] = await Promise.all([
+    const [attachments, timelineEvents, communications, settlement, flightVerification, aiOutput] = await Promise.all([
       storage.getAttachments(id),
       storage.getTimelineEvents(id),
       storage.getCommunications(id),
       storage.getSettlement(id),
-      storage.getFlightVerification(id)
+      storage.getFlightVerification(id),
+      storage.getAiOutput(id)
     ]);
 
     res.json({
@@ -326,7 +497,8 @@ export async function registerRoutes(
       timelineEvents,
       communications,
       settlement,
-      flightVerification
+      flightVerification,
+      aiOutput
     });
   });
 
