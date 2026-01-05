@@ -7,6 +7,7 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { registerAgentRoutes } from "./replit_integrations/agent";
 
 // Upload configuration
 const upload = multer({ 
@@ -21,6 +22,9 @@ export async function registerRoutes(
   // Auth Setup
   await setupAuth(app);
   registerAuthRoutes(app);
+  
+  // AI Agent Routes
+  registerAgentRoutes(app);
 
   // Serve uploads statically
   app.use("/uploads", express.static("uploads"));
