@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowRight, Send, Save, Phone, Mail, FileText, Plane, CheckCircle, XCircle, Clock, AlertTriangle, Upload, Bot, FileSearch, Edit, MessageSquareMore, Shield, ShieldAlert, ShieldX, Sparkles } from "lucide-react";
+import { Loader2, ArrowRight, Send, Save, Phone, Mail, FileText, Plane, CheckCircle, XCircle, Clock, AlertTriangle, Upload, Bot, FileSearch, Edit, MessageSquareMore, Shield, ShieldAlert, ShieldX, Sparkles, ScanSearch, Eye } from "lucide-react";
 import { useState, useCallback } from "react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";

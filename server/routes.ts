@@ -11,6 +11,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { registerAgentRoutes } from "./replit_integrations/agent";
 import { extractBoardingPassData } from "./services/boardingPassOCR";
 import { verifyFlightStatus } from "./services/flightVerification";
+import { verifyDocument, type DocumentVerificationResult } from "./services/documentVerification";
 import OpenAI from "openai";
 
 // Upload configuration
@@ -290,6 +291,116 @@ export async function registerRoutes(
       res.json(verification || null);
     } catch (error) {
       res.status(500).json({ message: "خطأ في جلب بيانات التحقق" });
+    }
+  });
+
+  // === AI DOCUMENT VERIFICATION ===
+  // Verify any document attached to a claim using AI vision
+  app.post("/api/claims/:id/verify-document/:attachmentId", isAuthenticated, async (req, res) => {
+    try {
+      const claimId = parseInt(req.params.id);
+      const attachmentId = parseInt(req.params.attachmentId);
+      
+      const claim = await storage.getClaim(claimId);
+      if (!claim) {
+        return res.status(404).json({ message: "المطالبة غير موجودة" });
+      }
+
+      // Get the attachment
+      const attachments = await storage.getAttachments(claimId);
+      const attachment = attachments.find(a => a.id === attachmentId);
+      
+      if (!attachment) {
+        return res.status(404).json({ message: "المرفق غير موجود" });
+      }
+
+      // Check if it's an image
+      if (!attachment.mimeType.startsWith("image/")) {
+        return res.status(400).json({ message: "التحقق بالذكاء الاصطناعي متاح فقط للصور" });
+      }
+
+      // Verify the document
+      const result = await verifyDocument(attachment.filePath);
+
+      // Add timeline event
+      const docTypeArabic: Record<string, string> = {
+        boarding_pass: "بطاقة صعود",
+        ticket: "تذكرة",
+        receipt: "إيصال",
+        invoice: "فاتورة",
+        id_document: "وثيقة هوية",
+        other: "مستند آخر",
+        unknown: "مستند غير معروف",
+      };
+
+      await storage.createTimelineEvent({
+        claimId,
+        eventType: "note",
+        message: `تم التحقق من المستند: ${docTypeArabic[result.documentType] || result.documentType} - ثقة ${result.confidence}%${result.warnings.length > 0 ? ` - تحذيرات: ${result.warnings.join(", ")}` : ""}`,
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Document verification error:", error);
+      res.status(500).json({ message: "فشل في التحقق من المستند" });
+    }
+  });
+
+  // Verify all documents for a claim
+  app.post("/api/claims/:id/verify-all-documents", isAuthenticated, async (req, res) => {
+    try {
+      const claimId = parseInt(req.params.id);
+      
+      const claim = await storage.getClaim(claimId);
+      if (!claim) {
+        return res.status(404).json({ message: "المطالبة غير موجودة" });
+      }
+
+      const attachments = await storage.getAttachments(claimId);
+      const imageAttachments = attachments.filter(a => a.mimeType.startsWith("image/"));
+      
+      if (imageAttachments.length === 0) {
+        return res.status(400).json({ message: "لا توجد صور مرفقة للتحقق منها" });
+      }
+
+      const results: { attachmentId: number; fileName: string; verification: DocumentVerificationResult }[] = [];
+      
+      for (const attachment of imageAttachments) {
+        try {
+          const verification = await verifyDocument(attachment.filePath);
+          results.push({
+            attachmentId: attachment.id,
+            fileName: attachment.fileName,
+            verification,
+          });
+        } catch (error) {
+          results.push({
+            attachmentId: attachment.id,
+            fileName: attachment.fileName,
+            verification: {
+              documentType: "unknown",
+              isRelevantToClaim: false,
+              extractedData: {},
+              verificationNotes: "فشل في معالجة الملف",
+              confidence: 0,
+              warnings: ["خطأ في التحليل"],
+            },
+          });
+        }
+      }
+
+      // Add timeline event summarizing all verifications
+      const successfulVerifications = results.filter(r => r.verification.confidence > 50);
+      await storage.createTimelineEvent({
+        claimId,
+        eventType: "note",
+        message: `تم التحقق من ${results.length} مستند(ات) - ${successfulVerifications.length} ناجح`,
+      });
+
+      res.json({ results, summary: { total: results.length, successful: successfulVerifications.length } });
+    } catch (error) {
+      console.error("Batch document verification error:", error);
+      res.status(500).json({ message: "فشل في التحقق من المستندات" });
     }
   });
 
