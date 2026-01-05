@@ -22,6 +22,14 @@ The AI agent acts as a professional flight claims representative:
 - Uses SSE streaming for real-time responses
 - Routes: `/api/agent/conversations` (CRUD), `/api/agent/conversations/:id/messages` (streaming)
 
+### Claim-Centric AI Panel (وكيل سند الذكي)
+Located in Admin Claim Details page for flight claims only:
+- **3 Action Buttons**: تحليل القضية (Analyze), صياغة المطالبة (Draft), متابعة/تصعيد (Follow-up)
+- **AI Outputs**: Case strength (strong/medium/weak), summary, eligibility reasoning, claim draft, next action
+- **Caching**: Uses MD5 hash of input+mode to prevent redundant API calls
+- **Timeline**: Auto-creates events for each AI action (success/failure)
+- **Route**: POST `/api/ai/flight-agent` with modes: analyze, draft, followup
+
 ## Database Tables
 - `claims`: Main claims data
 - `attachments`: File uploads linked to claims
