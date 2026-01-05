@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowRight, Send, Save, Phone, Mail, FileText, Plane, CheckCircle, XCircle, Clock, AlertTriangle, Upload } from "lucide-react";
+import { Loader2, ArrowRight, Send, Save, Phone, Mail, FileText, Plane, CheckCircle, XCircle, Clock, AlertTriangle, Upload, Bot, FileSearch, Edit, MessageSquareMore, Shield, ShieldAlert, ShieldX, Sparkles } from "lucide-react";
 import { useState, useCallback } from "react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -25,6 +25,7 @@ export default function AdminClaimDetails() {
   const [note, setNote] = useState("");
   const [commMessage, setCommMessage] = useState("");
   const [status, setStatus] = useState<string | undefined>(undefined);
+  const [airlineResponse, setAirlineResponse] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -68,6 +69,39 @@ export default function AdminClaimDetails() {
       uploadBoardingPassMutation.mutate(file);
     }
   }, [uploadBoardingPassMutation]);
+
+  const aiAgentMutation = useMutation({
+    mutationFn: async (mode: "analyze" | "draft" | "followup") => {
+      const flightVerification = claim?.flightVerification;
+      const claimData = {
+        airline: flightVerification?.airline || claim?.companyName || "",
+        flightNumber: flightVerification?.flightNumber || claim?.referenceNumber || "",
+        date: flightVerification?.scheduledDeparture 
+          ? format(new Date(flightVerification.scheduledDeparture), "yyyy-MM-dd")
+          : claim?.incidentDate ? format(new Date(claim.incidentDate), "yyyy-MM-dd") : "",
+        from: flightVerification?.departureAirport || claim?.flightFrom || "",
+        to: flightVerification?.arrivalAirport || claim?.flightTo || "",
+        disruptionType: claim?.issueType || "delay",
+        delayMinutes: flightVerification?.delayMinutes || undefined,
+        reasonText: claim?.description || "",
+      };
+      const evidenceText = (claim?.attachments || []).map((a: any) => a.fileName).join(", ");
+      return await apiRequest("POST", "/api/ai/flight-agent", {
+        claimId: id,
+        mode,
+        claimData,
+        evidenceText,
+        airlineResponseText: mode === "followup" ? airlineResponse : undefined,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.claims.get.path, id] });
+      toast({ title: "تم تنفيذ طلب وكيل سند الذكي" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تنفيذ الطلب", variant: "destructive" });
+    },
+  });
 
   if (isLoading || !claim) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
@@ -384,6 +418,143 @@ export default function AdminClaimDetails() {
             </CardContent>
           </Card>
           
+          {/* AI Agent Panel - Only for flight claims */}
+          {claim.category === "flight" && (
+            <Card className="border-emerald-200 dark:border-emerald-800">
+              <CardHeader className="bg-emerald-50 dark:bg-emerald-950/30 pb-3">
+                <CardTitle className="font-cairo text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                  <Bot className="h-4 w-4" />
+                  وكيل سند الذكي
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                {/* 3 Action Buttons */}
+                <div className="grid grid-cols-1 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="font-tajawal justify-start gap-2"
+                    onClick={() => aiAgentMutation.mutate("analyze")}
+                    disabled={aiAgentMutation.isPending}
+                    data-testid="button-ai-analyze"
+                  >
+                    {aiAgentMutation.isPending && aiAgentMutation.variables === "analyze" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileSearch className="h-4 w-4 text-blue-500" />
+                    )}
+                    تحليل القضية
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="font-tajawal justify-start gap-2"
+                    onClick={() => aiAgentMutation.mutate("draft")}
+                    disabled={aiAgentMutation.isPending}
+                    data-testid="button-ai-draft"
+                  >
+                    {aiAgentMutation.isPending && aiAgentMutation.variables === "draft" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Edit className="h-4 w-4 text-purple-500" />
+                    )}
+                    صياغة المطالبة
+                  </Button>
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="رد شركة الطيران (للمتابعة)..."
+                      className="font-tajawal text-xs h-16"
+                      value={airlineResponse}
+                      onChange={e => setAirlineResponse(e.target.value)}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="font-tajawal justify-start gap-2 w-full"
+                      onClick={() => aiAgentMutation.mutate("followup")}
+                      disabled={aiAgentMutation.isPending}
+                      data-testid="button-ai-followup"
+                    >
+                      {aiAgentMutation.isPending && aiAgentMutation.variables === "followup" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MessageSquareMore className="h-4 w-4 text-amber-500" />
+                      )}
+                      متابعة / تصعيد
+                    </Button>
+                  </div>
+                </div>
+
+                {/* AI Output Display */}
+                {claim.aiOutput && (
+                  <div className="space-y-3 border-t pt-4">
+                    {/* Case Strength Badge */}
+                    {claim.aiOutput.caseStrength && (
+                      <div className="flex items-center gap-2">
+                        {claim.aiOutput.caseStrength === "strong" && (
+                          <div className="flex items-center gap-1 text-green-600 bg-green-50 dark:bg-green-950/30 px-2 py-1 rounded text-xs font-tajawal">
+                            <Shield className="h-3 w-3" />
+                            قضية قوية
+                          </div>
+                        )}
+                        {claim.aiOutput.caseStrength === "medium" && (
+                          <div className="flex items-center gap-1 text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-2 py-1 rounded text-xs font-tajawal">
+                            <ShieldAlert className="h-3 w-3" />
+                            قضية متوسطة
+                          </div>
+                        )}
+                        {claim.aiOutput.caseStrength === "weak" && (
+                          <div className="flex items-center gap-1 text-red-600 bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded text-xs font-tajawal">
+                            <ShieldX className="h-3 w-3" />
+                            قضية ضعيفة
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Summary */}
+                    {claim.aiOutput.summary && (
+                      <div className="bg-muted/40 p-3 rounded-lg">
+                        <label className="text-xs text-muted-foreground font-tajawal flex items-center gap-1 mb-1">
+                          <Sparkles className="h-3 w-3" />
+                          ملخص التحليل
+                        </label>
+                        <p className="text-sm font-tajawal whitespace-pre-wrap">{claim.aiOutput.summary}</p>
+                      </div>
+                    )}
+
+                    {/* Eligibility Reasoning */}
+                    {claim.aiOutput.eligibilityReasoning && (
+                      <div className="bg-muted/40 p-3 rounded-lg">
+                        <label className="text-xs text-muted-foreground font-tajawal mb-1 block">تحليل الأهلية</label>
+                        <p className="text-sm font-tajawal whitespace-pre-wrap">{claim.aiOutput.eligibilityReasoning}</p>
+                      </div>
+                    )}
+
+                    {/* Claim Draft */}
+                    {claim.aiOutput.claimDraft && (
+                      <div className="bg-emerald-50 dark:bg-emerald-950/20 p-3 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                        <label className="text-xs text-emerald-700 dark:text-emerald-400 font-tajawal flex items-center gap-1 mb-1">
+                          <Edit className="h-3 w-3" />
+                          مسودة المطالبة
+                        </label>
+                        <p className="text-sm font-tajawal whitespace-pre-wrap leading-relaxed">{claim.aiOutput.claimDraft}</p>
+                      </div>
+                    )}
+
+                    {/* Next Action */}
+                    {claim.aiOutput.nextAction && (
+                      <div className="bg-blue-50 dark:bg-blue-950/20 p-2 rounded border border-blue-200 dark:border-blue-800">
+                        <label className="text-xs text-blue-700 dark:text-blue-400 font-tajawal mb-1 block">الخطوة التالية</label>
+                        <p className="text-sm font-tajawal">{claim.aiOutput.nextAction}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader><CardTitle className="font-cairo text-sm">بيانات داخلية</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm font-tajawal">

@@ -316,10 +316,20 @@ export async function registerRoutes(
       const input = flightAgentSchema.parse(req.body);
       const { claimId, mode, claimData, evidenceText, airlineResponseText } = input;
 
-      // Verify claim exists
+      // Verify claim exists and is a flight claim
       const claim = await storage.getClaim(claimId);
       if (!claim) {
         return res.status(404).json({ message: "المطالبة غير موجودة" });
+      }
+
+      // Only flight claims can use the AI agent
+      if (claim.category !== "flight") {
+        return res.status(400).json({ message: "وكيل سند الذكي متاح فقط لمطالبات الطيران" });
+      }
+
+      // Followup mode requires airline response
+      if (mode === "followup" && (!airlineResponseText || !airlineResponseText.trim())) {
+        return res.status(400).json({ message: "يجب إدخال رد شركة الطيران للمتابعة" });
       }
 
       // Generate input hash for caching
@@ -451,9 +461,33 @@ ${airlineResponseText || "لا يوجد رد"}`;
         message: `تم إنشاء ${modeLabels[mode]} بواسطة وكيل سند الذكي`,
       });
 
-      res.json({ ...normalizedResult, cached: false });
+      // Re-fetch persisted data to ensure consistency
+      const persistedOutput = await storage.getAiOutput(claimId);
+      res.json({
+        ai_summary: persistedOutput?.summary || normalizedResult.ai_summary,
+        ai_case_strength: persistedOutput?.caseStrength || normalizedResult.ai_case_strength,
+        ai_eligibility_reasoning: persistedOutput?.eligibilityReasoning || normalizedResult.ai_eligibility_reasoning,
+        ai_claim_draft: persistedOutput?.claimDraft || normalizedResult.ai_claim_draft,
+        ai_next_action: persistedOutput?.nextAction || normalizedResult.ai_next_action,
+        cached: false,
+      });
     } catch (error) {
       console.error("Flight agent error:", error);
+      
+      // Add timeline event for AI failure
+      try {
+        const parsedInput = flightAgentSchema.safeParse(req.body);
+        if (parsedInput.success) {
+          await storage.createTimelineEvent({
+            claimId: parsedInput.data.claimId,
+            eventType: "ai_action",
+            message: `فشل طلب وكيل سند الذكي: ${error instanceof Error ? error.message : "خطأ غير متوقع"}`,
+          });
+        }
+      } catch {
+        // Ignore timeline event creation errors
+      }
+      
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "بيانات غير صالحة", errors: error.errors });
       }
