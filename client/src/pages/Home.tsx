@@ -67,24 +67,28 @@ export default function Home() {
               variants={fadeUp}
               className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4"
             >
-              <Link href="/new">
-                <Button 
-                  size="lg" 
-                  className="w-full sm:w-auto h-14 px-8 text-lg font-bold rounded-2xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-1 transition-all btn-gradient"
-                >
+              <Button 
+                asChild
+                size="lg" 
+                data-testid="button-new-claim"
+                className="w-full sm:w-auto h-14 px-8 text-lg font-bold rounded-2xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-1 transition-all btn-gradient"
+              >
+                <Link href="/new">
                   ابدأ مطالبة جديدة
                   <ChevronLeft className="mr-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Link href="/track">
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="w-full sm:w-auto h-14 px-8 text-lg font-bold rounded-2xl border-2 hover:bg-muted/50"
-                >
+                </Link>
+              </Button>
+              <Button 
+                asChild
+                size="lg" 
+                variant="outline" 
+                data-testid="button-track-claim"
+                className="w-full sm:w-auto h-14 px-8 text-lg font-bold rounded-2xl border-2 hover:bg-muted/50"
+              >
+                <Link href="/track">
                   تتبع حالة الطلب
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </motion.div>
             
             {/* Trust Indicators */}
@@ -283,16 +287,18 @@ export default function Home() {
               <p className="text-white/90 text-lg mb-8 max-w-2xl mx-auto">
                 أكثر من 80% من المسافرين لا يطالبون بحقوقهم. كن من الأذكياء واستعد حقك الآن!
               </p>
-              <Link href="/new">
-                <Button 
-                  size="lg" 
-                  variant="secondary" 
-                  className="h-14 px-8 text-lg font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all"
-                >
+              <Button 
+                asChild
+                size="lg" 
+                variant="secondary" 
+                data-testid="button-cta-new-claim"
+                className="h-14 px-8 text-lg font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all"
+              >
+                <Link href="/new">
                   ابدأ المطالبة الآن
                   <ChevronLeft className="mr-2 h-5 w-5" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </motion.div>
         </div>
