@@ -30,15 +30,7 @@ export default function Home() {
       <section ref={heroRef} className="relative min-h-[100svh] flex items-center justify-center overflow-hidden">
         {/* Animated Background */}
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-background to-background" />
-        <motion.div 
-          style={{ y }}
-          className="absolute inset-0 opacity-30"
-        >
-          <div className="absolute top-20 right-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse-slow" />
-          <div className="absolute bottom-40 left-10 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
-          <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl animate-float" />
-        </motion.div>
-        
+                
         <div className="container relative z-10 px-4 py-20 md:py-0">
           <motion.div 
             style={{ opacity }}
@@ -172,8 +164,6 @@ export default function Home() {
                 transition={{ delay: i * 0.1 }}
                 className="group relative bg-card rounded-3xl p-8 border shadow-sm card-hover overflow-hidden"
               >
-                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${service.color} opacity-10 rounded-full blur-2xl group-hover:opacity-20 transition-opacity`} />
-                
                 <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${service.color} flex items-center justify-center mb-6 shadow-lg`}>
                   <service.icon className="h-8 w-8 text-white" />
                 </div>

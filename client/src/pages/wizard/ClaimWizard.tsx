@@ -86,7 +86,6 @@ export default function ClaimWizard() {
             transition={{ delay: 0.2, type: "spring" }}
             className="relative mx-auto w-24 h-24"
           >
-            <div className="absolute inset-0 bg-green-500/20 rounded-full blur-xl animate-pulse" />
             <div className="relative w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-lg">
               <CheckCircle2 className="w-12 h-12 text-white" />
             </div>

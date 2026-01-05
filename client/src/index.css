@@ -167,11 +167,11 @@
   }
   
   .glass-card {
-    @apply bg-white/70 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10;
+    @apply bg-card border border-border;
   }
   
   .glass-nav {
-    @apply bg-background/80 dark:bg-background/90 backdrop-blur-xl;
+    @apply bg-background;
   }
   
   .text-gradient {

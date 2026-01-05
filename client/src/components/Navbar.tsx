@@ -45,10 +45,7 @@ export function Navbar() {
       <div className="container flex h-16 md:h-20 items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="relative">
-            <ShieldCheck className="h-8 w-8 md:h-10 md:w-10 text-primary transition-transform group-hover:scale-110" />
-            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
+          <ShieldCheck className="h-8 w-8 md:h-10 md:w-10 text-primary transition-transform group-hover:scale-110" />
           <span className="text-2xl md:text-3xl font-black text-gradient">سند</span>
         </Link>
         
