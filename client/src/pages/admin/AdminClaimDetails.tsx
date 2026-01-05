@@ -151,7 +151,7 @@ export default function AdminClaimDetails() {
           <h1 className="text-2xl font-bold font-cairo flex items-center gap-3">
             المطالبة #{claim.claimId}
             <span className="text-sm px-3 py-1 bg-primary/10 text-primary rounded-full font-normal">
-              {claim.category === 'flight' ? 'طيران' : 'توصيل'}
+              طيران
             </span>
           </h1>
         </div>

@@ -39,7 +39,8 @@ export async function registerRoutes(
   app.post(api.claims.create.path, async (req, res) => {
     try {
       const input = api.claims.create.input.parse(req.body);
-      const claim = await storage.createClaim(input);
+      // Flight-only MVP: enforce category
+      const claim = await storage.createClaim({ ...input, category: "flight" });
       
       // Auto-add timeline event
       await storage.createTimelineEvent({

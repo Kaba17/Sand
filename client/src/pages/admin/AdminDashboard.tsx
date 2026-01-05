@@ -67,7 +67,7 @@ export default function AdminDashboard() {
                   <TableCell className="font-mono font-medium">{claim.claimId}</TableCell>
                   <TableCell className="font-tajawal">{claim.customerName}</TableCell>
                   <TableCell className="font-tajawal">
-                    {claim.category === 'flight' ? 'طيران' : 'توصيل'}
+                    طيران
                   </TableCell>
                   <TableCell className="font-mono text-sm">
                     {format(new Date(claim.createdAt || new Date()), "yyyy/MM/dd", { locale: ar })}
